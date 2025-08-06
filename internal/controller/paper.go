@@ -167,3 +167,12 @@ func GetPaperResult(c *gin.Context) {
 		"totalScore": totalScore,
 	})
 }
+
+func ListPapers(c *gin.Context) {
+	var papers []entity.Paper
+	if err := database.DB.Find(&papers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取试卷列表失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"papers": papers})
+}

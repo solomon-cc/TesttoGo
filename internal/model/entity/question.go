@@ -31,18 +31,6 @@ type Question struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-type Paper struct {
-	ID         uint           `gorm:"primarykey" json:"id"`
-	Title      string         `gorm:"type:varchar(255)" json:"title"`
-	CreatorID  uint           `json:"creator_id"`
-	Questions  string         `gorm:"type:text" json:"questions"` // JSON格式存储题目ID列表
-	Duration   int            `gorm:"default:60" json:"duration"` // 考试时长（分钟）
-	TotalScore int            `json:"total_score"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
 type UserAnswer struct {
 	ID         uint           `gorm:"primarykey" json:"id"`
 	UserID     uint           `json:"user_id"`
