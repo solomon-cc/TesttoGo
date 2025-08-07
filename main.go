@@ -3,11 +3,15 @@ package main
 import (
 	"log"
 
+	"testogo/docs"
+	"testogo/internal/middleware"
 	"testogo/internal/router"
 	"testogo/pkg/config"
 	"testogo/pkg/database"
 
 	"github.com/gin-gonic/gin"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -23,6 +27,14 @@ func main() {
 
 	// 创建 Gin 引擎
 	app := gin.Default()
+
+	// 设置 Swagger 信息
+	docs.SwaggerInfo.BasePath = "/api/v1"
+
+	// 添加带认证的 Swagger 路由
+	swaggerGroup := app.Group("/swagger")
+	swaggerGroup.Use(middleware.BasicAuth())
+	swaggerGroup.GET("/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// 初始化路由
 	router.InitRouter(app)

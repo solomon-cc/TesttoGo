@@ -11,6 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// @Summary 创建题目
+// @Description 创建新的题目
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param request body request.CreateQuestionRequest true "创建题目请求参数"
+// @Success 200 {object} map[string]interface{} "返回创建的题目ID"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions [post]
 func CreateQuestion(c *gin.Context) {
 	var req request.CreateQuestionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -38,6 +49,17 @@ func CreateQuestion(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": question.ID})
 }
 
+// @Summary 获取题目列表
+// @Description 获取题目列表，支持分页和过滤
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param type query string false "题目类型"
+// @Param difficulty query string false "题目难度"
+// @Success 200 {array} entity.Question "题目列表"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions [get]
 func ListQuestions(c *gin.Context) {
 	var questions []entity.Question
 	query := database.DB.Order("id desc")

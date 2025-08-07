@@ -12,6 +12,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// @Summary 用户注册
+// @Description 注册新用户
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body request.RegisterRequest true "注册请求参数"
+// @Success 200 {object} map[string]interface{} "注册成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/auth/register [post]
 func Register(c *gin.Context) {
 	var req request.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

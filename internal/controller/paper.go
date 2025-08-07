@@ -12,6 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// @Summary 创建试卷
+// @Description 创建新的试卷
+// @Tags 试卷
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param request body request.CreatePaperRequest true "创建试卷请求参数"
+// @Success 200 {object} map[string]interface{} "返回创建的试卷ID"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/papers [post]
 func CreatePaper(c *gin.Context) {
 	var req request.CreatePaperRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

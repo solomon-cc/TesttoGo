@@ -10,6 +10,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// @Summary 获取用户列表
+// @Description 获取用户列表，支持分页
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param page query integer false "页码，默认1"
+// @Param page_size query integer false "每页数量，默认10"
+// @Success 200 {object} map[string]interface{} "用户列表和总数"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/users [get]
 func ListUsers(c *gin.Context) {
 	var users []entity.User
 	query := database.DB.Order("id desc")
@@ -36,6 +47,19 @@ func ListUsers(c *gin.Context) {
 	})
 }
 
+// @Summary 更新用户角色
+// @Description 更新指定用户的角色
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param id path integer true "用户ID"
+// @Param request body map[string]string true "角色信息 {\"role\": \"user|teacher|admin\"}"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 404 {object} map[string]interface{} "用户不存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/users/{id}/role [put]
 func UpdateUserRole(c *gin.Context) {
 	id := c.Param("id")
 	var input struct {

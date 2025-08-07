@@ -2,6 +2,10 @@ server:
   port: "8080"
   mode: "debug"
 
+swagger:
+  username: "admin"
+  password: "F5KDq2exI1bTvIcISdWF"
+
 database:
   driver: "mysql"
   host: "10.37.19.94"
@@ -15,7 +19,7 @@ database:
 
 jwt:
   secret: "8nf656Boi0IeWn5MsDIV"
-  expire: 72  # hours
+  expire: 72 # hours
 
 upload:
   savePath: "./resource"
