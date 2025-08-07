@@ -4,18 +4,18 @@ server:
 
 database:
   driver: "mysql"
-  host: "localhost"
+  host: "10.37.19.94"
   port: 3306
-  username: "root"
-  password: "123456"
-  dbname: "testogo"
+  username: "db_testogo"
+  password: "1WVW2GdWgHTfXmnJiiJK"
+  dbname: "db_testogo"
   charset: "utf8mb4"
   maxIdleConns: 10
   maxOpenConns: 100
 
 jwt:
-  secret: "your-secret-key"
-  expire: 24  # hours
+  secret: "8nf656Boi0IeWn5MsDIV"
+  expire: 72  # hours
 
 upload:
   savePath: "./resource"
