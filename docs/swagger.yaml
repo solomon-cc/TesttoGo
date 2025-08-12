@@ -1,0 +1,326 @@
+definitions:
+  entity.Question:
+    properties:
+      answer:
+        type: string
+      created_at:
+        type: string
+      creator_id:
+        type: integer
+      difficulty:
+        description: 1-5
+        type: integer
+      explanation:
+        description: 答案解释
+        type: string
+      id:
+        type: integer
+      media_url:
+        description: 媒体资源URL
+        type: string
+      options:
+        description: JSON格式存储选项
+        type: string
+      tags:
+        description: 逗号分隔的标签
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/entity.QuestionType'
+      updated_at:
+        type: string
+    type: object
+  entity.QuestionType:
+    enum:
+    - choice
+    - judge
+    - fillin
+    - math
+    type: string
+    x-enum-comments:
+      TypeChoice: 选择题
+      TypeFillIn: 填空题
+      TypeJudge: 判断题
+      TypeMath: 加减法题
+    x-enum-descriptions:
+    - 选择题
+    - 判断题
+    - 填空题
+    - 加减法题
+    x-enum-varnames:
+    - TypeChoice
+    - TypeJudge
+    - TypeFillIn
+    - TypeMath
+  request.CreatePaperRequest:
+    properties:
+      duration:
+        minimum: 1
+        type: integer
+      question_ids:
+        items:
+          type: integer
+        type: array
+      title:
+        type: string
+    required:
+    - duration
+    - question_ids
+    - title
+    type: object
+  request.CreateQuestionRequest:
+    properties:
+      answer:
+        type: string
+      difficulty:
+        maximum: 5
+        minimum: 1
+        type: integer
+      explanation:
+        type: string
+      options:
+        type: string
+      tags:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    required:
+    - answer
+    - difficulty
+    - title
+    - type
+    type: object
+  request.RegisterRequest:
+    properties:
+      password:
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户
+      parameters:
+      - description: 注册请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 注册成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户注册
+      tags:
+      - 认证
+  /api/v1/papers:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的试卷
+      parameters:
+      - description: 创建试卷请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreatePaperRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回创建的试卷ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BasicAuth: []
+      summary: 创建试卷
+      tags:
+      - 试卷
+  /api/v1/questions:
+    get:
+      consumes:
+      - application/json
+      description: 获取题目列表，支持分页和过滤
+      parameters:
+      - description: 题目类型
+        in: query
+        name: type
+        type: string
+      - description: 题目难度
+        in: query
+        name: difficulty
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 题目列表
+          schema:
+            items:
+              $ref: '#/definitions/entity.Question'
+            type: array
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BasicAuth: []
+      summary: 获取题目列表
+      tags:
+      - 题目
+    post:
+      consumes:
+      - application/json
+      description: 创建新的题目
+      parameters:
+      - description: 创建题目请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateQuestionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 返回创建的题目ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BasicAuth: []
+      summary: 创建题目
+      tags:
+      - 题目
+  /api/v1/users:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表，支持分页
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 用户列表和总数
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BasicAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户
+  /api/v1/users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: 更新指定用户的角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 角色信息 {\
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 用户不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器内部错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BasicAuth: []
+      summary: 更新用户角色
+      tags:
+      - 用户
+swagger: "2.0"
