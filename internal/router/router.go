@@ -27,8 +27,11 @@ func InitRouter(r *gin.Engine) {
 		questions := protected.Group("/questions")
 		{
 			questions.GET("", controller.ListQuestions)
+			questions.GET("/random", controller.GetRandomQuestions)
 			questions.GET("/:id", controller.GetQuestion)
+			questions.GET("/:id/statistics", controller.GetQuestionStatistics)
 			questions.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreateQuestion)
+			questions.POST("/:id/answer", controller.AnswerQuestion)
 			questions.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdateQuestion)
 			questions.DELETE("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.DeleteQuestion)
 		}
@@ -43,13 +46,22 @@ func InitRouter(r *gin.Engine) {
 			papers.GET("/:id/result", controller.GetPaperResult)
 		}
 
-		// 用户管理路由（仅管理员）
+		// 用户相关路由
 		users := protected.Group("/users")
-		users.Use(middleware.RoleMiddleware("admin"))
 		{
-			users.GET("", controller.ListUsers)
-			users.PUT("/:id/role", controller.UpdateUserRole)
-			users.DELETE("/:id", controller.DeleteUser)
+			// 答题历史（所有用户可访问自己的历史）
+			users.GET("/answers/history", controller.GetUserAnswerHistory)
+			// 用户答题表现统计
+			users.GET("/performance", controller.GetUserPerformance)
+		}
+
+		// 用户管理路由（仅管理员）
+		admin := protected.Group("/users")
+		admin.Use(middleware.RoleMiddleware("admin"))
+		{
+			admin.GET("", controller.ListUsers)
+			admin.PUT("/:id/role", controller.UpdateUserRole)
+			admin.DELETE("/:id", controller.DeleteUser)
 		}
 	}
 }

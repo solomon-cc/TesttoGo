@@ -3,9 +3,12 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"testogo/internal/model/entity"
 	"testogo/internal/model/request"
+	"testogo/internal/model/response"
 	"testogo/pkg/database"
 
 	"github.com/gin-gonic/gin"
@@ -139,4 +142,318 @@ func DeleteQuestion(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+}
+
+// @Summary 单题答题
+// @Description 用户对单个题目进行答题
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param id path int true "题目ID"
+// @Param request body request.SingleAnswerRequest true "答题请求参数"
+// @Success 200 {object} response.QuestionAnswerResponse "答题结果"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 404 {object} map[string]interface{} "题目不存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions/{id}/answer [post]
+func AnswerQuestion(c *gin.Context) {
+	questionID := c.Param("id")
+	userID := c.GetUint("userID")
+	
+	var req request.SingleAnswerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取题目信息
+	var question entity.Question
+	if err := database.DB.First(&question, questionID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "题目不存在"})
+		return
+	}
+
+	// 判断答案是否正确
+	isCorrect := checkAnswer(question.Answer, req.Answer)
+	score := 0
+	if isCorrect {
+		score = 10 // 单题答对得10分
+	}
+
+	// 保存答题记录
+	userAnswer := entity.UserAnswer{
+		UserID:     userID,
+		QuestionID: uint(mustParseInt(questionID)),
+		Answer:     req.Answer,
+		Score:      score,
+		IsCorrect:  isCorrect,
+		AnswerType: "single",
+		PaperID:    0, // 单题答题不关联试卷
+	}
+
+	if err := database.DB.Create(&userAnswer).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存答题记录失败"})
+		return
+	}
+
+	// 构造响应
+	resp := response.QuestionAnswerResponse{
+		QuestionID:  userAnswer.QuestionID,
+		UserAnswer:  userAnswer.Answer,
+		IsCorrect:   userAnswer.IsCorrect,
+		Score:       userAnswer.Score,
+		Explanation: question.Explanation,
+		AnsweredAt:  userAnswer.CreatedAt,
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// @Summary 随机获取题目
+// @Description 根据条件随机获取题目进行练习
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param type query string false "题目类型"
+// @Param difficulty query int false "难度等级(1-5)"
+// @Param tags query string false "题目标签"
+// @Param count query int false "题目数量,默认1"
+// @Success 200 {array} entity.Question "题目列表"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions/random [get]
+func GetRandomQuestions(c *gin.Context) {
+	count, _ := strconv.Atoi(c.DefaultQuery("count", "1"))
+	if count > 10 {
+		count = 10 // 限制最多10道题
+	}
+
+	query := database.DB.Model(&entity.Question{})
+
+	// 按类型过滤
+	if qType := c.Query("type"); qType != "" {
+		query = query.Where("type = ?", qType)
+	}
+
+	// 按难度过滤
+	if difficulty := c.Query("difficulty"); difficulty != "" {
+		query = query.Where("difficulty = ?", difficulty)
+	}
+
+	// 按标签过滤
+	if tags := c.Query("tags"); tags != "" {
+		query = query.Where("tags LIKE ?", "%"+tags+"%")
+	}
+
+	var questions []entity.Question
+	if err := query.Order("RAND()").Limit(count).Find(&questions).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, questions)
+}
+
+// @Summary 获取用户答题历史
+// @Description 获取当前用户的答题历史记录
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param page query int false "页码,默认1"
+// @Param page_size query int false "每页数量,默认10"
+// @Param type query string false "答题类型过滤(single|paper)"
+// @Success 200 {object} response.PaginationResponse "答题历史列表"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/users/answers/history [get]
+func GetUserAnswerHistory(c *gin.Context) {
+	userID := c.GetUint("userID")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	
+	query := database.DB.Model(&entity.UserAnswer{}).Where("user_id = ?", userID)
+	
+	// 按答题类型过滤
+	if answerType := c.Query("type"); answerType != "" {
+		query = query.Where("answer_type = ?", answerType)
+	}
+
+	// 获取总数
+	var total int64
+	query.Count(&total)
+
+	// 获取答题记录，包含题目信息
+	var userAnswers []entity.UserAnswer
+	err := query.Preload("Question").
+		Order("created_at DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&userAnswers).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取答题历史失败"})
+		return
+	}
+
+	// 构造响应
+	var historyList []response.UserAnswerHistoryResponse
+	for _, answer := range userAnswers {
+		historyList = append(historyList, response.UserAnswerHistoryResponse{
+			ID:            answer.ID,
+			QuestionID:    answer.QuestionID,
+			PaperID:       answer.PaperID,
+			Title:         answer.Question.Title,
+			Type:          string(answer.Question.Type),
+			UserAnswer:    answer.Answer,
+			IsCorrect:     answer.IsCorrect,
+			Score:         answer.Score,
+			AnsweredAt:    answer.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, response.PaginationResponse{
+		Code:    200,
+		Message: "获取成功",
+		Data:    historyList,
+		Meta: response.PaginationMeta{
+			Page:     page,
+			PageSize: pageSize,
+			Total:    total,
+			HasNext:  int64(page*pageSize) < total,
+		},
+	})
+}
+
+// 辅助函数：检查答案是否正确
+func checkAnswer(correctAnswer, userAnswer string) bool {
+	// 去除前后空格并转为小写进行比较
+	correct := strings.TrimSpace(strings.ToLower(correctAnswer))
+	user := strings.TrimSpace(strings.ToLower(userAnswer))
+	return correct == user
+}
+
+// @Summary 获取题目答题统计
+// @Description 获取指定题目的答题统计信息
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param id path int true "题目ID"
+// @Success 200 {object} response.QuestionStatisticsResponse "题目统计信息"
+// @Failure 404 {object} map[string]interface{} "题目不存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions/{id}/statistics [get]
+func GetQuestionStatistics(c *gin.Context) {
+	questionID := c.Param("id")
+	
+	// 验证题目是否存在
+	var question entity.Question
+	if err := database.DB.First(&question, questionID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "题目不存在"})
+		return
+	}
+
+	// 统计该题目的答题记录
+	var totalAttempts, correctCount int64
+	database.DB.Model(&entity.UserAnswer{}).Where("question_id = ?", questionID).Count(&totalAttempts)
+	database.DB.Model(&entity.UserAnswer{}).Where("question_id = ? AND is_correct = ?", questionID, true).Count(&correctCount)
+
+	// 计算正确率
+	var accuracyRate float64
+	if totalAttempts > 0 {
+		accuracyRate = float64(correctCount) / float64(totalAttempts) * 100
+	}
+
+	resp := response.QuestionStatisticsResponse{
+		QuestionID:    uint(mustParseInt(questionID)),
+		Title:         question.Title,
+		TotalAttempts: totalAttempts,
+		CorrectCount:  correctCount,
+		AccuracyRate:  accuracyRate,
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// @Summary 获取用户答题表现分析
+// @Description 获取当前用户的答题表现统计
+// @Tags 题目  
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Success 200 {object} map[string]interface{} "用户答题表现统计"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/users/performance [get]
+func GetUserPerformance(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	// 统计用户总体答题情况
+	var totalAnswers, correctAnswers int64
+	database.DB.Model(&entity.UserAnswer{}).Where("user_id = ?", userID).Count(&totalAnswers)
+	database.DB.Model(&entity.UserAnswer{}).Where("user_id = ? AND is_correct = ?", userID, true).Count(&correctAnswers)
+
+	// 按题目类型统计
+	var typeStats []struct {
+		Type          string `json:"type"`
+		TotalAnswers  int64  `json:"total_answers"`
+		CorrectCount  int64  `json:"correct_count"`
+		AccuracyRate  float64 `json:"accuracy_rate"`
+	}
+
+	rows, err := database.DB.Raw(`
+		SELECT q.type, 
+		       COUNT(*) as total_answers,
+		       SUM(CASE WHEN ua.is_correct = true THEN 1 ELSE 0 END) as correct_count,
+		       (SUM(CASE WHEN ua.is_correct = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) as accuracy_rate
+		FROM user_answers ua 
+		JOIN questions q ON ua.question_id = q.id 
+		WHERE ua.user_id = ? AND ua.deleted_at IS NULL AND q.deleted_at IS NULL
+		GROUP BY q.type
+	`, userID).Rows()
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取统计数据失败"})
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var stat struct {
+			Type          string  `json:"type"`
+			TotalAnswers  int64   `json:"total_answers"`
+			CorrectCount  int64   `json:"correct_count"`
+			AccuracyRate  float64 `json:"accuracy_rate"`
+		}
+		rows.Scan(&stat.Type, &stat.TotalAnswers, &stat.CorrectCount, &stat.AccuracyRate)
+		typeStats = append(typeStats, stat)
+	}
+
+	// 计算总体正确率
+	var overallAccuracy float64
+	if totalAnswers > 0 {
+		overallAccuracy = float64(correctAnswers) / float64(totalAnswers) * 100
+	}
+
+	// 统计最近7天的答题情况
+	var recentAnswers int64
+	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
+	database.DB.Model(&entity.UserAnswer{}).
+		Where("user_id = ? AND created_at >= ?", userID, sevenDaysAgo).
+		Count(&recentAnswers)
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id":              userID,
+		"total_answers":        totalAnswers,
+		"correct_answers":      correctAnswers,
+		"overall_accuracy":     overallAccuracy,
+		"recent_7days_answers": recentAnswers,
+		"type_statistics":      typeStats,
+	})
+}
+
+// 辅助函数：字符串转整数
+func mustParseInt(s string) int {
+	i, _ := strconv.Atoi(s)
+	return i
 }

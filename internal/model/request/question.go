@@ -30,3 +30,16 @@ type SubmitAnswerRequest struct {
 	QuestionID uint   `json:"question_id" binding:"required"`
 	Answer     string `json:"answer" binding:"required"`
 }
+
+// SingleAnswerRequest 单题答题请求
+type SingleAnswerRequest struct {
+	Answer string `json:"answer" binding:"required"`
+}
+
+// RandomQuestionRequest 随机获取题目请求
+type RandomQuestionRequest struct {
+	Type       string `json:"type"`       // 题目类型过滤
+	Difficulty int    `json:"difficulty"` // 难度过滤 (1-5)
+	Tags       string `json:"tags"`       // 标签过滤
+	Count      int    `json:"count"`      // 题目数量，默认1
+}

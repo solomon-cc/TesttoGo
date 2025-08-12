@@ -34,11 +34,17 @@ type Question struct {
 type UserAnswer struct {
 	ID         uint           `gorm:"primarykey" json:"id"`
 	UserID     uint           `json:"user_id"`
-	PaperID    uint           `json:"paper_id"`
+	PaperID    uint           `json:"paper_id"` // 可选，单题答题时为0
 	QuestionID uint           `json:"question_id"`
 	Answer     string         `gorm:"type:text" json:"answer"`
 	Score      int            `json:"score"`
+	IsCorrect  bool           `json:"is_correct"`
+	AnswerType string         `gorm:"type:varchar(20);default:'single'" json:"answer_type"` // single|paper
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// 关联关系
+	Question Question `gorm:"foreignKey:QuestionID" json:"question,omitempty"`
+	User     User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
