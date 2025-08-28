@@ -28,6 +28,9 @@ func main() {
 	// 创建 Gin 引擎
 	app := gin.Default()
 
+	// 添加 CORS 中间件
+	app.Use(middleware.CORSMiddleware())
+
 	// 设置 Swagger 信息
 	docs.SwaggerInfo.BasePath = "/api/v1"
 
