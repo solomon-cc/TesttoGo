@@ -60,6 +60,8 @@ func InitRouter(r *gin.Engine) {
 		admin.Use(middleware.RoleMiddleware("admin"))
 		{
 			admin.GET("", controller.ListUsers)
+			admin.POST("", controller.CreateUser)
+			admin.PUT("/:id", controller.UpdateUser)
 			admin.PUT("/:id/role", controller.UpdateUserRole)
 			admin.DELETE("/:id", controller.DeleteUser)
 		}

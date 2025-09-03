@@ -10,6 +10,7 @@ import (
 	"testogo/pkg/database"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -47,6 +48,157 @@ func ListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"total": total,
 		"items": users,
+	})
+}
+
+// @Summary 创建用户
+// @Description 管理员创建新用户
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param request body map[string]string true "用户信息 {\"username\": \"用户名\", \"password\": \"密码\", \"role\": \"user|teacher|admin\"}"
+// @Success 201 {object} map[string]interface{} "创建成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 409 {object} map[string]interface{} "用户名已存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/users [post]
+func CreateUser(c *gin.Context) {
+	var input struct {
+		Username string `json:"username" binding:"required,min=3,max=20"`
+		Password string `json:"password" binding:"required,min=6"`
+		Role     string `json:"role" binding:"required,oneof=user teacher admin"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if username already exists
+	var existingUser entity.User
+	if err := database.DB.Where("username = ?", input.Username).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "用户名已存在"})
+		return
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "密码加密失败"})
+		return
+	}
+
+	// Create user
+	user := entity.User{
+		Username: input.Username,
+		Password: string(hashedPassword),
+		Role:     entity.Role(input.Role),
+	}
+
+	if err := database.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建用户失败"})
+		return
+	}
+
+	// Return user info without password
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "用户创建成功",
+		"user": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"role":       user.Role,
+			"created_at": user.CreatedAt,
+		},
+	})
+}
+
+// @Summary 更新用户信息
+// @Description 管理员更新用户信息
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param id path integer true "用户ID"
+// @Param request body map[string]string true "用户信息 {\"username\": \"用户名\", \"password\": \"密码\", \"role\": \"user|teacher|admin\"}"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 404 {object} map[string]interface{} "用户不存在"
+// @Failure 409 {object} map[string]interface{} "用户名已存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/users/{id} [put]
+func UpdateUser(c *gin.Context) {
+	id := c.Param("id")
+	var input struct {
+		Username string `json:"username,omitempty" binding:"omitempty,min=3,max=20"`
+		Password string `json:"password,omitempty" binding:"omitempty,min=6"`
+		Role     string `json:"role,omitempty" binding:"omitempty,oneof=user teacher admin"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user exists
+	var user entity.User
+	if err := database.DB.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		return
+	}
+
+	// Prepare update data
+	updateData := make(map[string]interface{})
+
+	// Update username if provided
+	if input.Username != "" && input.Username != user.Username {
+		// Check if new username already exists
+		var existingUser entity.User
+		if err := database.DB.Where("username = ? AND id != ?", input.Username, id).First(&existingUser).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{"error": "用户名已存在"})
+			return
+		}
+		updateData["username"] = input.Username
+	}
+
+	// Update password if provided
+	if input.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "密码加密失败"})
+			return
+		}
+		updateData["password"] = string(hashedPassword)
+	}
+
+	// Update role if provided
+	if input.Role != "" {
+		updateData["role"] = input.Role
+	}
+
+	// Perform update if there's data to update
+	if len(updateData) > 0 {
+		if err := database.DB.Model(&user).Updates(updateData).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户失败"})
+			return
+		}
+	}
+
+	// Fetch updated user info
+	if err := database.DB.Select("id, username, role, created_at, updated_at").First(&user, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取用户信息失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "更新成功",
+		"user": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"role":       user.Role,
+			"created_at": user.CreatedAt,
+			"updated_at": user.UpdatedAt,
+		},
 	})
 }
 
