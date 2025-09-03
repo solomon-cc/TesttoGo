@@ -63,5 +63,87 @@ func InitRouter(r *gin.Engine) {
 			admin.PUT("/:id/role", controller.UpdateUserRole)
 			admin.DELETE("/:id", controller.DeleteUser)
 		}
+
+		// 作业相关路由
+		homework := protected.Group("/homework")
+		{
+			// 学生查看作业
+			homework.GET("/student", controller.ListHomework)
+			homework.GET("/:id", controller.GetHomework)
+			homework.POST("/submit", controller.SubmitHomework)
+			
+			// 教师/管理员作业管理
+			homework.GET("/teacher", middleware.RoleMiddleware("teacher", "admin"), controller.ListHomework)
+			homework.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreateHomework)
+			homework.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdateHomework)
+			homework.DELETE("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.DeleteHomework)
+			homework.POST("/:id/copy", middleware.RoleMiddleware("teacher", "admin"), controller.CopyHomework)
+			homework.GET("/:id/submissions", middleware.RoleMiddleware("teacher", "admin"), controller.GetHomeworkSubmissions)
+			homework.PUT("/:id/adjust", middleware.RoleMiddleware("teacher", "admin"), controller.AdjustHomework)
+			homework.GET("/history", middleware.RoleMiddleware("teacher", "admin"), controller.GetHomeworkHistory)
+		}
+
+		// 强化学习相关路由
+		reinforcement := protected.Group("/reinforcements")
+		{
+			// 强化物管理
+			reinforcement.GET("", controller.ListReinforcementItems)
+			reinforcement.GET("/:id", controller.GetReinforcementItem)
+			reinforcement.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreateReinforcementItem)
+			reinforcement.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdateReinforcementItem)
+			reinforcement.DELETE("/:id", middleware.RoleMiddleware("admin"), controller.DeleteReinforcementItem)
+			
+			// 强化物视频上传
+			reinforcement.POST("/videos", middleware.RoleMiddleware("teacher", "admin"), controller.UploadRewardVideo)
+			reinforcement.DELETE("/videos/:id", middleware.RoleMiddleware("teacher", "admin"), controller.DeleteRewardVideo)
+		}
+
+		// 强化设置相关路由
+		reinforcementSettings := protected.Group("/reinforcement-settings")
+		{
+			reinforcementSettings.GET("", controller.ListReinforcementSettings)
+			reinforcementSettings.GET("/:id", controller.GetReinforcementSetting)
+			reinforcementSettings.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreateReinforcementSetting)
+			reinforcementSettings.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdateReinforcementSetting)
+			reinforcementSettings.DELETE("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.DeleteReinforcementSetting)
+			reinforcementSettings.POST("/:id/copy", middleware.RoleMiddleware("teacher", "admin"), controller.CopyReinforcementSetting)
+		}
+
+		// 强化日志相关路由
+		reinforcementLogs := protected.Group("/reinforcement-logs")
+		{
+			reinforcementLogs.POST("", controller.RecordReinforcementTrigger)
+			reinforcementLogs.GET("/stats", controller.GetReinforcementStats)
+		}
+
+		// 年级、科目、主题相关路由
+		content := protected.Group("/content")
+		{
+			// 年级管理
+			grades := content.Group("/grades")
+			{
+				grades.GET("", controller.ListGrades)
+				grades.GET("/:id", controller.GetGrade)
+				grades.POST("", middleware.RoleMiddleware("admin"), controller.CreateGrade)
+			}
+
+			// 科目管理
+			subjects := content.Group("/subjects")
+			{
+				subjects.GET("", controller.ListSubjects)
+				subjects.GET("/:id", controller.GetSubject)
+				subjects.GET("/code/:code", controller.GetSubjectByCode)
+				subjects.POST("", middleware.RoleMiddleware("admin"), controller.CreateSubject)
+				subjects.GET("/:id/topics", controller.ListTopics)
+			}
+
+			// 主题管理
+			topics := content.Group("/topics")
+			{
+				topics.GET("/:id", controller.GetTopic)
+				topics.GET("/:subject_code/:topic_code", controller.GetTopicByCode)
+				topics.POST("", middleware.RoleMiddleware("admin"), controller.CreateTopic)
+			}
+		}
 	}
 }

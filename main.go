@@ -4,10 +4,11 @@ import (
 	"log"
 
 	"testogo/docs"
+	"testogo/internal/database"
 	"testogo/internal/middleware"
 	"testogo/internal/router"
 	"testogo/pkg/config"
-	"testogo/pkg/database"
+	pkgDatabase "testogo/pkg/database"
 
 	"github.com/gin-gonic/gin"
 	swaggerfiles "github.com/swaggo/files"
@@ -21,8 +22,13 @@ func main() {
 	}
 
 	// 初始化数据库
-	if err := database.Init(); err != nil {
+	if err := pkgDatabase.Init(); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
+	}
+
+	// 运行数据迁移和种子数据
+	if err := database.SeedData(); err != nil {
+		log.Printf("数据种子失败: %v", err)
 	}
 
 	// 创建 Gin 引擎
