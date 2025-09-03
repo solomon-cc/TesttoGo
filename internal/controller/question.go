@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"testogo/internal/model/entity"
 	"testogo/internal/model/request"
@@ -255,75 +254,6 @@ func GetRandomQuestions(c *gin.Context) {
 	c.JSON(http.StatusOK, questions)
 }
 
-// @Summary 获取用户答题历史
-// @Description 获取当前用户的答题历史记录
-// @Tags 题目
-// @Accept json
-// @Produce json
-// @Security BasicAuth
-// @Param page query int false "页码,默认1"
-// @Param page_size query int false "每页数量,默认10"
-// @Param type query string false "答题类型过滤(single|paper)"
-// @Success 200 {object} response.PaginationResponse "答题历史列表"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
-// @Router /api/v1/users/answers/history [get]
-func GetUserAnswerHistory(c *gin.Context) {
-	userID := c.GetUint("userID")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
-	
-	query := database.DB.Model(&entity.UserAnswer{}).Where("user_id = ?", userID)
-	
-	// 按答题类型过滤
-	if answerType := c.Query("type"); answerType != "" {
-		query = query.Where("answer_type = ?", answerType)
-	}
-
-	// 获取总数
-	var total int64
-	query.Count(&total)
-
-	// 获取答题记录，包含题目信息
-	var userAnswers []entity.UserAnswer
-	err := query.Preload("Question").
-		Order("created_at DESC").
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		Find(&userAnswers).Error
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取答题历史失败"})
-		return
-	}
-
-	// 构造响应
-	var historyList []response.UserAnswerHistoryResponse
-	for _, answer := range userAnswers {
-		historyList = append(historyList, response.UserAnswerHistoryResponse{
-			ID:            answer.ID,
-			QuestionID:    answer.QuestionID,
-			PaperID:       answer.PaperID,
-			Title:         answer.Question.Title,
-			Type:          string(answer.Question.Type),
-			UserAnswer:    answer.Answer,
-			IsCorrect:     answer.IsCorrect,
-			Score:         answer.Score,
-			AnsweredAt:    answer.CreatedAt,
-		})
-	}
-
-	c.JSON(http.StatusOK, response.PaginationResponse{
-		Code:    200,
-		Message: "获取成功",
-		Data:    historyList,
-		Meta: response.PaginationMeta{
-			Page:     page,
-			PageSize: pageSize,
-			Total:    total,
-			HasNext:  int64(page*pageSize) < total,
-		},
-	})
-}
 
 // 辅助函数：检查答案是否正确
 func checkAnswer(correctAnswer, userAnswer string) bool {
@@ -376,81 +306,6 @@ func GetQuestionStatistics(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// @Summary 获取用户答题表现分析
-// @Description 获取当前用户的答题表现统计
-// @Tags 题目  
-// @Accept json
-// @Produce json
-// @Security BasicAuth
-// @Success 200 {object} map[string]interface{} "用户答题表现统计"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
-// @Router /api/v1/users/performance [get]
-func GetUserPerformance(c *gin.Context) {
-	userID := c.GetUint("userID")
-
-	// 统计用户总体答题情况
-	var totalAnswers, correctAnswers int64
-	database.DB.Model(&entity.UserAnswer{}).Where("user_id = ?", userID).Count(&totalAnswers)
-	database.DB.Model(&entity.UserAnswer{}).Where("user_id = ? AND is_correct = ?", userID, true).Count(&correctAnswers)
-
-	// 按题目类型统计
-	var typeStats []struct {
-		Type          string `json:"type"`
-		TotalAnswers  int64  `json:"total_answers"`
-		CorrectCount  int64  `json:"correct_count"`
-		AccuracyRate  float64 `json:"accuracy_rate"`
-	}
-
-	rows, err := database.DB.Raw(`
-		SELECT q.type, 
-		       COUNT(*) as total_answers,
-		       SUM(CASE WHEN ua.is_correct = true THEN 1 ELSE 0 END) as correct_count,
-		       (SUM(CASE WHEN ua.is_correct = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) as accuracy_rate
-		FROM user_answers ua 
-		JOIN questions q ON ua.question_id = q.id 
-		WHERE ua.user_id = ? AND ua.deleted_at IS NULL AND q.deleted_at IS NULL
-		GROUP BY q.type
-	`, userID).Rows()
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取统计数据失败"})
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var stat struct {
-			Type          string  `json:"type"`
-			TotalAnswers  int64   `json:"total_answers"`
-			CorrectCount  int64   `json:"correct_count"`
-			AccuracyRate  float64 `json:"accuracy_rate"`
-		}
-		rows.Scan(&stat.Type, &stat.TotalAnswers, &stat.CorrectCount, &stat.AccuracyRate)
-		typeStats = append(typeStats, stat)
-	}
-
-	// 计算总体正确率
-	var overallAccuracy float64
-	if totalAnswers > 0 {
-		overallAccuracy = float64(correctAnswers) / float64(totalAnswers) * 100
-	}
-
-	// 统计最近7天的答题情况
-	var recentAnswers int64
-	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
-	database.DB.Model(&entity.UserAnswer{}).
-		Where("user_id = ? AND created_at >= ?", userID, sevenDaysAgo).
-		Count(&recentAnswers)
-
-	c.JSON(http.StatusOK, gin.H{
-		"user_id":              userID,
-		"total_answers":        totalAnswers,
-		"correct_answers":      correctAnswers,
-		"overall_accuracy":     overallAccuracy,
-		"recent_7days_answers": recentAnswers,
-		"type_statistics":      typeStats,
-	})
-}
 
 // 辅助函数：字符串转整数
 func mustParseInt(s string) int {

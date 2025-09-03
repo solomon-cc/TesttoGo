@@ -53,6 +53,19 @@ func Init() error {
 		&entity.Question{},
 		&entity.Paper{},
 		&entity.UserAnswer{},
+		&entity.Grade{},
+		&entity.Subject{},
+		&entity.Topic{},
+		&entity.Homework{},
+		&entity.HomeworkAssignment{},
+		&entity.HomeworkQuestion{},
+		&entity.HomeworkSubmission{},
+		&entity.HomeworkQuestionAnswer{},
+		&entity.HomeworkAdjustment{},
+		&entity.ReinforcementSetting{},
+		&entity.ReinforcementItem{},
+		&entity.ReinforcementLog{},
+		&entity.UserPerformance{},
 	)
 	if err != nil {
 		return err

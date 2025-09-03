@@ -937,6 +937,9 @@ func DeleteRewardVideo(c *gin.Context) {
 
 	// Delete file (in production, delete from cloud storage)
 	// Note: This is a simplified implementation
+	// TODO: Implement actual file deletion using os.Remove(uploadPath)
+	_ = uploadPath // Temporarily ignore until file deletion is implemented
+	
 	c.JSON(http.StatusOK, response.SuccessResponse{
 		Message: "Video deleted successfully",
 	})

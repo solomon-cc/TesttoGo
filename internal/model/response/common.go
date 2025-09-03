@@ -34,3 +34,9 @@ type PaginationMeta struct {
 type IDResponse struct {
 	ID uint `json:"id"`
 }
+
+// SuccessResponse 成功响应结构
+type SuccessResponse struct {
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}

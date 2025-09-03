@@ -38,7 +38,7 @@ type Homework struct {
 	IsTimeLimited         bool                 `gorm:"default:false" json:"is_time_limited"`
 	TimeLimit             int                  `gorm:"default:0" json:"time_limit"` // minutes
 	ShowHints             bool                 `gorm:"default:true" json:"show_hints"`
-	ReinforcementSettings string               `gorm:"type:json" json:"reinforcement_settings"` // JSON data
+	ReinforcementSettings string               `gorm:"type:text" json:"reinforcement_settings"` // JSON data
 	CreatedAt             time.Time            `json:"created_at"`
 	UpdatedAt             time.Time            `json:"updated_at"`
 	DeletedAt             gorm.DeletedAt       `gorm:"index" json:"-"`
@@ -122,7 +122,7 @@ type HomeworkAdjustment struct {
 	TeacherID   uint   `json:"teacher_id"`
 	AdjustType  string `gorm:"type:varchar(50)" json:"adjust_type"` // add_questions, remove_questions, change_difficulty, etc.
 	Description string `gorm:"type:text" json:"description"`
-	Changes     string `gorm:"type:json" json:"changes"` // JSON data of specific changes
+	Changes     string `gorm:"type:text" json:"changes"` // JSON data of specific changes
 	CreatedAt   time.Time `json:"created_at"`
 
 	// Relations

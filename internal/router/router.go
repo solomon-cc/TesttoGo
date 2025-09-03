@@ -132,7 +132,7 @@ func InitRouter(r *gin.Engine) {
 			{
 				subjects.GET("", controller.ListSubjects)
 				subjects.GET("/:id", controller.GetSubject)
-				subjects.GET("/code/:code", controller.GetSubjectByCode)
+				subjects.GET("/by-code/:code", controller.GetSubjectByCode)
 				subjects.POST("", middleware.RoleMiddleware("admin"), controller.CreateSubject)
 				subjects.GET("/:id/topics", controller.ListTopics)
 			}
@@ -141,7 +141,7 @@ func InitRouter(r *gin.Engine) {
 			topics := content.Group("/topics")
 			{
 				topics.GET("/:id", controller.GetTopic)
-				topics.GET("/:subject_code/:topic_code", controller.GetTopicByCode)
+				topics.GET("/by-code/:subject_code/:topic_code", controller.GetTopicByCode)
 				topics.POST("", middleware.RoleMiddleware("admin"), controller.CreateTopic)
 			}
 		}

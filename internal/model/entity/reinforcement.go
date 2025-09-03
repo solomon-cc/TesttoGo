@@ -81,7 +81,7 @@ type ReinforcementLog struct {
 	SessionID              string    `gorm:"type:varchar(100)" json:"session_id"` // Practice session identifier
 	TriggerType            string    `gorm:"type:varchar(50)" json:"trigger_type"` // ratio, interval, manual
 	TriggerValue           int       `json:"trigger_value"`         // The count or time that triggered it
-	ContextData            string    `gorm:"type:json" json:"context_data"` // Additional context as JSON
+	ContextData            string    `gorm:"type:text" json:"context_data"` // Additional context as JSON
 	CreatedAt              time.Time `json:"created_at"`
 
 	// Relations

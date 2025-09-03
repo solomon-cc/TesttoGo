@@ -2,6 +2,21 @@ package response
 
 import "time"
 
+// QuestionResponse 题目响应
+type QuestionResponse struct {
+	ID          uint      `json:"id"`
+	Title       string    `json:"title"`
+	Type        string    `json:"type"`
+	Difficulty  int       `json:"difficulty"`
+	Options     string    `json:"options,omitempty"`
+	Answer      string    `json:"answer,omitempty"` // 仅对教师/管理员显示
+	Explanation string    `json:"explanation,omitempty"`
+	MediaURL    string    `json:"media_url,omitempty"`
+	Tags        string    `json:"tags,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // QuestionAnswerResponse 单题答题响应
 type QuestionAnswerResponse struct {
 	QuestionID  uint      `json:"question_id"`
