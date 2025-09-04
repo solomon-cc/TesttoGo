@@ -20,6 +20,9 @@ type Question struct {
 	Title       string         `gorm:"type:text" json:"title"`
 	Type        QuestionType   `gorm:"type:varchar(20)" json:"type"`
 	Difficulty  int            `gorm:"type:tinyint;default:1" json:"difficulty"` // 1-5
+	Grade       string         `gorm:"type:varchar(20)" json:"grade"`            // 年级: grade1, grade2, etc.
+	Subject     string         `gorm:"type:varchar(50)" json:"subject"`          // 科目: math, vocabulary, reading, literacy
+	Topic       string         `gorm:"type:varchar(100)" json:"topic"`           // 主题: addition, subtraction, etc.
 	Options     string         `gorm:"type:text" json:"options"`                 // JSON格式存储选项
 	Answer      string         `gorm:"type:text" json:"answer"`
 	Explanation string         `gorm:"type:text" json:"explanation"` // 答案解释

@@ -36,6 +36,9 @@ func CreateQuestion(c *gin.Context) {
 		Title:       req.Title,
 		Type:        entity.QuestionType(req.Type),
 		Difficulty:  req.Difficulty,
+		Grade:       req.Grade,
+		Subject:     req.Subject,
+		Topic:       req.Topic,
 		Options:     req.Options,
 		Answer:      req.Answer,
 		Explanation: req.Explanation,
@@ -59,6 +62,9 @@ func CreateQuestion(c *gin.Context) {
 // @Security BasicAuth
 // @Param type query string false "题目类型"
 // @Param difficulty query string false "题目难度"
+// @Param grade query string false "年级"
+// @Param subject query string false "科目"
+// @Param topic query string false "主题"
 // @Success 200 {array} entity.Question "题目列表"
 // @Failure 500 {object} map[string]interface{} "服务器内部错误"
 // @Router /api/v1/questions [get]
@@ -66,12 +72,21 @@ func ListQuestions(c *gin.Context) {
 	var questions []entity.Question
 	query := database.DB.Order("id desc")
 
-	// 支持按类型和难度过滤
+	// 支持按类型、难度、年级、科目、主题过滤
 	if qType := c.Query("type"); qType != "" {
 		query = query.Where("type = ?", qType)
 	}
 	if difficulty := c.Query("difficulty"); difficulty != "" {
 		query = query.Where("difficulty = ?", difficulty)
+	}
+	if grade := c.Query("grade"); grade != "" {
+		query = query.Where("grade = ?", grade)
+	}
+	if subject := c.Query("subject"); subject != "" {
+		query = query.Where("subject = ?", subject)
+	}
+	if topic := c.Query("topic"); topic != "" {
+		query = query.Where("topic = ?", topic)
 	}
 
 	// 分页
@@ -120,6 +135,9 @@ func UpdateQuestion(c *gin.Context) {
 	updates := map[string]interface{}{
 		"title":       req.Title,
 		"difficulty":  req.Difficulty,
+		"grade":       req.Grade,
+		"subject":     req.Subject,
+		"topic":       req.Topic,
 		"options":     req.Options,
 		"answer":      req.Answer,
 		"explanation": req.Explanation,
@@ -217,6 +235,9 @@ func AnswerQuestion(c *gin.Context) {
 // @Security BasicAuth
 // @Param type query string false "题目类型"
 // @Param difficulty query int false "难度等级(1-5)"
+// @Param grade query string false "年级"
+// @Param subject query string false "科目"
+// @Param topic query string false "主题"
 // @Param tags query string false "题目标签"
 // @Param count query int false "题目数量,默认1"
 // @Success 200 {array} entity.Question "题目列表"
@@ -238,6 +259,21 @@ func GetRandomQuestions(c *gin.Context) {
 	// 按难度过滤
 	if difficulty := c.Query("difficulty"); difficulty != "" {
 		query = query.Where("difficulty = ?", difficulty)
+	}
+
+	// 按年级过滤
+	if grade := c.Query("grade"); grade != "" {
+		query = query.Where("grade = ?", grade)
+	}
+
+	// 按科目过滤
+	if subject := c.Query("subject"); subject != "" {
+		query = query.Where("subject = ?", subject)
+	}
+
+	// 按主题过滤
+	if topic := c.Query("topic"); topic != "" {
+		query = query.Where("topic = ?", topic)
 	}
 
 	// 按标签过滤
