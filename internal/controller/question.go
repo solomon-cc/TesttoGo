@@ -101,9 +101,45 @@ func ListQuestions(c *gin.Context) {
 		return
 	}
 
+	// 构建带统计数据的响应
+	var questionsWithStats []response.QuestionWithStatsResponse
+	for _, question := range questions {
+		// 计算统计数据
+		var totalAttempts, correctCount int64
+		database.DB.Model(&entity.UserAnswer{}).Where("question_id = ?", question.ID).Count(&totalAttempts)
+		database.DB.Model(&entity.UserAnswer{}).Where("question_id = ? AND is_correct = ?", question.ID, true).Count(&correctCount)
+
+		// 计算正确率
+		var correctRate float64
+		if totalAttempts > 0 {
+			correctRate = float64(correctCount) / float64(totalAttempts) * 100
+		}
+
+		questionWithStats := response.QuestionWithStatsResponse{
+			ID:          question.ID,
+			Title:       question.Title,
+			Type:        string(question.Type),
+			Difficulty:  question.Difficulty,
+			Grade:       question.Grade,
+			Subject:     question.Subject,
+			Topic:       question.Topic,
+			Options:     question.Options,
+			Answer:      question.Answer,
+			Explanation: question.Explanation,
+			CreatorID:   question.CreatorID,
+			MediaURL:    question.MediaURL,
+			Tags:        question.Tags,
+			CreatedAt:   question.CreatedAt,
+			UpdatedAt:   question.UpdatedAt,
+			UsageCount:  totalAttempts,
+			CorrectRate: correctRate,
+		}
+		questionsWithStats = append(questionsWithStats, questionWithStats)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"total": total,
-		"items": questions,
+		"items": questionsWithStats,
 	})
 }
 

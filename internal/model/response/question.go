@@ -48,3 +48,25 @@ type QuestionStatisticsResponse struct {
 	CorrectCount  int64   `json:"correct_count"`
 	AccuracyRate  float64 `json:"accuracy_rate"`
 }
+
+// QuestionWithStatsResponse 带统计数据的题目响应（用于列表）
+type QuestionWithStatsResponse struct {
+	ID          uint      `json:"id"`
+	Title       string    `json:"title"`
+	Type        string    `json:"type"`
+	Difficulty  int       `json:"difficulty"`
+	Grade       string    `json:"grade"`
+	Subject     string    `json:"subject"`
+	Topic       string    `json:"topic"`
+	Options     string    `json:"options"`
+	Answer      string    `json:"answer"`
+	Explanation string    `json:"explanation"`
+	CreatorID   uint      `json:"creator_id"`
+	MediaURL    string    `json:"media_url"`
+	Tags        string    `json:"tags"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	// 统计字段
+	UsageCount   int64   `json:"usageCount"`   // 使用次数（总答题次数）
+	CorrectRate  float64 `json:"correctRate"`  // 答对率
+}
