@@ -62,7 +62,10 @@ type QuestionWithStatsResponse struct {
 	Answer      string    `json:"answer"`
 	Explanation string    `json:"explanation"`
 	CreatorID   uint      `json:"creator_id"`
-	MediaURL    string    `json:"media_url"`
+	MediaURL    string    `json:"media_url"`     // 单个媒体资源URL（保留兼容性）
+	MediaURLs   string    `json:"media_urls"`    // JSON格式存储多个媒体资源URL
+	LayoutType  string    `json:"layout_type"`   // 布局类型
+	ElementData string    `json:"element_data"`  // JSON格式存储元素信息
 	Tags        string    `json:"tags"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

@@ -43,6 +43,9 @@ func CreateQuestion(c *gin.Context) {
 		Answer:      req.Answer,
 		Explanation: req.Explanation,
 		CreatorID:   userID,
+		MediaURLs:   req.MediaURLs,
+		LayoutType:  req.LayoutType,
+		ElementData: req.ElementData,
 		Tags:        req.Tags,
 	}
 
@@ -128,6 +131,9 @@ func ListQuestions(c *gin.Context) {
 			Explanation: question.Explanation,
 			CreatorID:   question.CreatorID,
 			MediaURL:    question.MediaURL,
+			MediaURLs:   question.MediaURLs,
+			LayoutType:  question.LayoutType,
+			ElementData: question.ElementData,
 			Tags:        question.Tags,
 			CreatedAt:   question.CreatedAt,
 			UpdatedAt:   question.UpdatedAt,
@@ -169,15 +175,18 @@ func UpdateQuestion(c *gin.Context) {
 
 	// 更新题目信息
 	updates := map[string]interface{}{
-		"title":       req.Title,
-		"difficulty":  req.Difficulty,
-		"grade":       req.Grade,
-		"subject":     req.Subject,
-		"topic":       req.Topic,
-		"options":     req.Options,
-		"answer":      req.Answer,
-		"explanation": req.Explanation,
-		"tags":        req.Tags,
+		"title":        req.Title,
+		"difficulty":   req.Difficulty,
+		"grade":        req.Grade,
+		"subject":      req.Subject,
+		"topic":        req.Topic,
+		"options":      req.Options,
+		"answer":       req.Answer,
+		"explanation":  req.Explanation,
+		"media_urls":   req.MediaURLs,
+		"layout_type":  req.LayoutType,
+		"element_data": req.ElementData,
+		"tags":         req.Tags,
 	}
 
 	if err := database.DB.Model(&question).Updates(updates).Error; err != nil {

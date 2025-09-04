@@ -9,10 +9,13 @@ import (
 type QuestionType string
 
 const (
-	TypeChoice QuestionType = "choice" // 选择题
-	TypeJudge  QuestionType = "judge"  // 判断题
-	TypeFillIn QuestionType = "fillin" // 填空题
-	TypeMath   QuestionType = "math"   // 加减法题
+	TypeChoice     QuestionType = "choice"     // 选择题
+	TypeJudge      QuestionType = "judge"      // 判断题
+	TypeFillIn     QuestionType = "fillin"     // 填空题
+	TypeMath       QuestionType = "math"       // 加减法题
+	TypeComparison QuestionType = "comparison" // 比较题（xx比xx多/少）
+	TypeReasoning  QuestionType = "reasoning"  // 推理题（数字序列等）
+	TypeVisual     QuestionType = "visual"     // 纯图片题
 )
 
 type Question struct {
@@ -27,7 +30,10 @@ type Question struct {
 	Answer      string         `gorm:"type:text" json:"answer"`
 	Explanation string         `gorm:"type:text" json:"explanation"` // 答案解释
 	CreatorID   uint           `json:"creator_id"`
-	MediaURL    string         `gorm:"type:varchar(255)" json:"media_url"` // 媒体资源URL
+	MediaURL    string         `gorm:"type:varchar(255)" json:"media_url"` // 单个媒体资源URL（保留兼容性）
+	MediaURLs   string         `gorm:"type:text" json:"media_urls"`        // JSON格式存储多个媒体资源URL
+	LayoutType  string         `gorm:"type:varchar(50)" json:"layout_type"` // 布局类型：single, horizontal, vertical, grid
+	ElementData string         `gorm:"type:text" json:"element_data"`       // JSON格式存储元素位置和标签信息
 	Tags        string         `gorm:"type:varchar(255)" json:"tags"`      // 逗号分隔的标签
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`

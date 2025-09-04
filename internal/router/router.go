@@ -118,6 +118,18 @@ func InitRouter(r *gin.Engine) {
 			reinforcementLogs.GET("/stats", controller.GetReinforcementStats)
 		}
 
+		// 文件上传相关路由
+		upload := protected.Group("/upload")
+		{
+			upload.POST("/images", middleware.RoleMiddleware("teacher", "admin"), controller.UploadImages)
+		}
+
+		// 静态文件服务
+		media := r.Group("/api/v1/media")
+		{
+			media.GET("/:filename", controller.ServeMedia)
+		}
+
 		// 年级、科目、主题相关路由
 		content := protected.Group("/content")
 		{
