@@ -279,7 +279,7 @@ func CreateTopic(c *gin.Context) {
 
 // ListTopics lists topics for a subject
 func ListTopics(c *gin.Context) {
-	subjectID, err := strconv.ParseUint(c.Param("subject_id"), 10, 32)
+	subjectID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse{
 			Error: "Invalid subject ID format",
