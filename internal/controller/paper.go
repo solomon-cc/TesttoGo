@@ -46,10 +46,19 @@ func CreatePaper(c *gin.Context) {
 	}
 
 	paper := entity.Paper{
-		Title:     req.Title,
-		CreatorID: c.GetUint("userID"),
-		Questions: string(questionIDs),
-		Duration:  req.Duration,
+		Title:       req.Title,
+		Description: req.Description,
+		CreatorID:   c.GetUint("userID"),
+		Grade:       req.Grade,
+		Subject:     req.Subject,
+		Type:        req.Type,
+		Difficulty:  req.Difficulty,
+		Status:      req.Status,
+		Questions:   string(questionIDs),
+		Duration:    req.Duration,
+		TotalScore:  req.TotalScore,
+		StartTime:   req.StartTime,
+		EndTime:     req.EndTime,
 	}
 
 	if err := database.DB.Create(&paper).Error; err != nil {
@@ -181,9 +190,9 @@ func GetPaperResult(c *gin.Context) {
 
 func ListPapers(c *gin.Context) {
 	var papers []entity.Paper
-	if err := database.DB.Find(&papers).Error; err != nil {
+	if err := database.DB.Preload("Creator").Find(&papers).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取试卷列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"papers": papers})
+	c.JSON(http.StatusOK, gin.H{"data": papers, "total": len(papers)})
 }

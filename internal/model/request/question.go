@@ -1,5 +1,7 @@
 package request
 
+import "time"
+
 type CreateQuestionRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Type        string `json:"type" binding:"required"`
@@ -32,9 +34,18 @@ type UpdateQuestionRequest struct {
 }
 
 type CreatePaperRequest struct {
-	Title       string `json:"title" binding:"required"`
-	QuestionIDs []uint `json:"question_ids" binding:"required"`
-	Duration    int    `json:"duration" binding:"required,min=1"`
+	Title        string     `json:"title" binding:"required"`
+	Description  string     `json:"description"`
+	Grade        string     `json:"grade" binding:"required"`
+	Subject      string     `json:"subject" binding:"required"`
+	Type         string     `json:"type" binding:"required,oneof=practice exam training"`
+	Difficulty   string     `json:"difficulty" binding:"required,oneof=easy medium hard"`
+	Status       string     `json:"status" binding:"required,oneof=draft published"`
+	QuestionIDs  []uint     `json:"question_ids" binding:"required"`
+	Duration     int        `json:"duration" binding:"required,min=1"`
+	TotalScore   int        `json:"total_score" binding:"required,min=1"`
+	StartTime    *time.Time `json:"start_time"`
+	EndTime      *time.Time `json:"end_time"`
 }
 
 type SubmitAnswerRequest struct {
