@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"testogo/internal/model/entity"
 	"testogo/internal/model/request"
@@ -294,6 +296,17 @@ func GetRandomQuestions(c *gin.Context) {
 		count = 100 // 限制最多100道题，支持试卷创建
 	}
 
+	// 添加调试日志
+	grade := c.Query("grade")
+	subject := c.Query("subject") 
+	difficulty := c.Query("difficulty")
+	qType := c.Query("type")
+	topic := c.Query("topic")
+	tags := c.Query("tags")
+	
+	println("=== GetRandomQuestions Debug ===")
+	println("Requested params - grade:", grade, "subject:", subject, "difficulty:", difficulty, "type:", qType, "topic:", topic, "tags:", tags, "count:", count)
+
 	query := database.DB.Model(&entity.Question{})
 
 	// 按类型过滤
@@ -338,11 +351,40 @@ func GetRandomQuestions(c *gin.Context) {
 	}
 
 	var questions []entity.Question
-	if err := query.Order("RAND()").Limit(count).Find(&questions).Error; err != nil {
+	
+	// 先查询总数以便调试
+	var totalCount int64
+	query.Count(&totalCount)
+	println("Found", totalCount, "questions matching criteria")
+	
+	// 如果没有找到匹配的题目，查询所有题目的样本数据
+	if totalCount == 0 {
+		var sampleQuestions []entity.Question
+		database.DB.Model(&entity.Question{}).Limit(3).Find(&sampleQuestions)
+		println("Sample questions in database:")
+		for _, q := range sampleQuestions {
+			println("ID:", q.ID, "Grade:", q.Grade, "Subject:", q.Subject, "Difficulty:", q.Difficulty, "Type:", string(q.Type))
+		}
+	}
+	
+	// 使用更可靠的随机查询方式
+	if err := query.Order("id DESC").Limit(count * 3).Find(&questions).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目失败"})
 		return
 	}
 
+	// 如果获取到的题目数量不够，随机选择
+	if len(questions) > count {
+		// 简单的随机选择逻辑
+		rand.Seed(time.Now().UnixNano())
+		for i := len(questions) - 1; i > 0; i-- {
+			j := rand.Intn(i + 1)
+			questions[i], questions[j] = questions[j], questions[i]
+		}
+		questions = questions[:count]
+	}
+	
+	println("Returning", len(questions), "questions")
 	c.JSON(http.StatusOK, questions)
 }
 
