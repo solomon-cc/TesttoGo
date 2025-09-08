@@ -303,7 +303,18 @@ func GetRandomQuestions(c *gin.Context) {
 
 	// 按难度过滤
 	if difficulty := c.Query("difficulty"); difficulty != "" {
-		query = query.Where("difficulty = ?", difficulty)
+		// 将字符串难度转换为数字
+		difficultyMap := map[string]int{
+			"easy":   1,
+			"medium": 2, 
+			"hard":   3,
+		}
+		if diffNum, ok := difficultyMap[difficulty]; ok {
+			query = query.Where("difficulty = ?", diffNum)
+		} else {
+			// 如果是数字字符串，直接使用
+			query = query.Where("difficulty = ?", difficulty)
+		}
 	}
 
 	// 按年级过滤
