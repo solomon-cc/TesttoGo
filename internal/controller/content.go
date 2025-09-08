@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"testogo/internal/model/entity"
@@ -281,8 +282,23 @@ func ListTopics(c *gin.Context) {
 	subjectID, err := strconv.ParseUint(c.Param("subject_id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, response.ErrorResponse{
-			Error: "Invalid subject ID",
+			Error: "Invalid subject ID format",
 		})
+		return
+	}
+
+	// Check if subject exists and is active
+	var subject entity.Subject
+	if err := database.DB.Where("id = ? AND is_active = ?", subjectID, true).First(&subject).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, response.ErrorResponse{
+				Error: "Subject not found or inactive",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+				Error: "Failed to verify subject",
+			})
+		}
 		return
 	}
 
