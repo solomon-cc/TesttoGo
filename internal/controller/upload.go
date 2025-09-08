@@ -82,8 +82,8 @@ func UploadImages(c *gin.Context) {
 			return
 		}
 
-		// 生成访问URL
-		fileURL := fmt.Sprintf("/api/v1/media/%s", filename)
+		// 生成访问URL (不包含/api/v1前缀，因为前端的VITE_API_BASE_URL已经包含了)
+		fileURL := fmt.Sprintf("/media/%s", filename)
 		uploadedURLs = append(uploadedURLs, fileURL)
 	}
 

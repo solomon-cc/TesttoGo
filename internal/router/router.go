@@ -124,6 +124,13 @@ func InitRouter(r *gin.Engine) {
 			upload.POST("/images", middleware.RoleMiddleware("teacher", "admin"), controller.UploadImages)
 		}
 
+		// 题目导入相关路由
+		importGroup := protected.Group("/import")
+		{
+			importGroup.POST("/questions", middleware.RoleMiddleware("teacher", "admin"), controller.ImportQuestions)
+			importGroup.POST("/questions/confirm", middleware.RoleMiddleware("teacher", "admin"), controller.ConfirmImportQuestions)
+		}
+
 		// 静态文件服务
 		media := r.Group("/api/v1/media")
 		{

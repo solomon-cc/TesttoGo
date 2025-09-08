@@ -55,3 +55,28 @@ type RandomQuestionRequest struct {
 	Tags       string `json:"tags"`       // 标签过滤
 	Count      int    `json:"count"`      // 题目数量，默认1
 }
+
+// ImportQuestionData 导入题目数据
+type ImportQuestionData struct {
+	Title        string   `json:"title" binding:"required"`
+	Type         string   `json:"type" binding:"required"`
+	Difficulty   int      `json:"difficulty"`
+	Grade        string   `json:"grade"`
+	Subject      string   `json:"subject"`
+	Topic        string   `json:"topic"`
+	Options      []string `json:"options"`
+	Answer       string   `json:"answer"`
+	Explanation  string   `json:"explanation"`
+	MediaURLs    []string `json:"media_urls"`
+	LayoutType   string   `json:"layout_type"`
+	ElementData  string   `json:"element_data"`
+	Tags         string   `json:"tags"`
+	Status       string   `json:"status"`        // pending, approved, rejected
+	ErrorMessage string   `json:"error_message"` // 错误信息
+}
+
+// ConfirmImportRequest 确认导入请求
+type ConfirmImportRequest struct {
+	FileID    string               `json:"file_id" binding:"required"`
+	Questions []ImportQuestionData `json:"questions" binding:"required"`
+}

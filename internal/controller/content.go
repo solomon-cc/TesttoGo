@@ -64,7 +64,7 @@ func CreateGrade(c *gin.Context) {
 func ListGrades(c *gin.Context) {
 	var grades []entity.Grade
 	if err := database.DB.Where("is_active = ?", true).
-		Order("order ASC, created_at ASC").
+		Order("`order` ASC, created_at ASC").
 		Find(&grades).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
 			Error: "Failed to fetch grades",
@@ -153,7 +153,7 @@ func ListSubjects(c *gin.Context) {
 	var subjects []entity.Subject
 	if err := database.DB.Where("is_active = ?", true).
 		Preload("Topics", "is_active = ?", true).
-		Order("order ASC, created_at ASC").
+		Order("`order` ASC, created_at ASC").
 		Find(&subjects).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
 			Error: "Failed to fetch subjects",
@@ -289,7 +289,7 @@ func ListTopics(c *gin.Context) {
 	var topics []entity.Topic
 	query := database.DB.Where("subject_id = ? AND is_active = ?", subjectID, true).
 		Preload("Subject").
-		Order("order ASC, created_at ASC")
+		Order("`order` ASC, created_at ASC")
 
 	if err := query.Find(&topics).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, response.ErrorResponse{

@@ -9,13 +9,15 @@ import (
 type QuestionType string
 
 const (
-	TypeChoice     QuestionType = "choice"     // 选择题
-	TypeJudge      QuestionType = "judge"      // 判断题
-	TypeFillIn     QuestionType = "fillin"     // 填空题
-	TypeMath       QuestionType = "math"       // 加减法题
-	TypeComparison QuestionType = "comparison" // 比较题（xx比xx多/少）
-	TypeReasoning  QuestionType = "reasoning"  // 推理题（数字序列等）
-	TypeVisual     QuestionType = "visual"     // 纯图片题
+	TypeChoice       QuestionType = "choice"       // 单选题
+	TypeMultiChoice  QuestionType = "multichoice"  // 多选题
+	TypeJudge        QuestionType = "judge"        // 判断题
+	TypeFillIn       QuestionType = "fillin"       // 填空题
+	TypeMath         QuestionType = "math"         // 加减法题
+	TypeComparison   QuestionType = "comparison"   // 比较题（xx比xx多/少）
+	TypeReasoning    QuestionType = "reasoning"    // 推理题（数字序列等）
+	TypeVisual       QuestionType = "visual"       // 纯图片题
+	TypeCircleSelect QuestionType = "circleselect" // 圈选题（把一样多的圈起来）
 )
 
 type Question struct {
@@ -26,7 +28,7 @@ type Question struct {
 	Grade       string         `gorm:"type:varchar(20)" json:"grade"`            // 年级: grade1, grade2, etc.
 	Subject     string         `gorm:"type:varchar(50)" json:"subject"`          // 科目: math, vocabulary, reading, literacy
 	Topic       string         `gorm:"type:varchar(100)" json:"topic"`           // 主题: addition, subtraction, etc.
-	Options     string         `gorm:"type:text" json:"options"`                 // JSON格式存储选项
+	Options     string         `gorm:"type:text" json:"options"`                 // JSON格式存储选项 - 支持文字和图片混合
 	Answer      string         `gorm:"type:text" json:"answer"`
 	Explanation string         `gorm:"type:text" json:"explanation"` // 答案解释
 	CreatorID   uint           `json:"creator_id"`
