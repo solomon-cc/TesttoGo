@@ -290,8 +290,8 @@ func AnswerQuestion(c *gin.Context) {
 // @Router /api/v1/questions/random [get]
 func GetRandomQuestions(c *gin.Context) {
 	count, _ := strconv.Atoi(c.DefaultQuery("count", "1"))
-	if count > 10 {
-		count = 10 // 限制最多10道题
+	if count > 100 {
+		count = 100 // 限制最多100道题，支持试卷创建
 	}
 
 	query := database.DB.Model(&entity.Question{})
