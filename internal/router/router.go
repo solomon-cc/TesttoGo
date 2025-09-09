@@ -42,6 +42,7 @@ func InitRouter(r *gin.Engine) {
 			papers.GET("", controller.ListPapers)
 			papers.GET("/:id", controller.GetPaper)
 			papers.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreatePaper)
+			papers.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdatePaper)
 			papers.POST("/:id/submit", controller.SubmitPaper)
 			papers.GET("/:id/result", controller.GetPaperResult)
 		}

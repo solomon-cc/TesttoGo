@@ -99,6 +99,72 @@ func GetPaper(c *gin.Context) {
 	})
 }
 
+// @Summary 更新试卷
+// @Description 更新现有试卷
+// @Tags 试卷
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param id path int true "试卷ID"
+// @Param request body request.CreatePaperRequest true "更新试卷请求参数"
+// @Success 200 {object} map[string]interface{} "更新成功"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 404 {object} map[string]interface{} "试卷不存在"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/papers/{id} [put]
+func UpdatePaper(c *gin.Context) {
+	id := c.Param("id")
+	var paper entity.Paper
+	if err := database.DB.First(&paper, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "试卷不存在"})
+		return
+	}
+
+	var req request.CreatePaperRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 验证题目是否存在（如果提供了题目ID列表）
+	if len(req.QuestionIDs) > 0 {
+		var count int64
+		database.DB.Model(&entity.Question{}).Where("id IN ?", req.QuestionIDs).Count(&count)
+		if int(count) != len(req.QuestionIDs) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "包含不存在的题目"})
+			return
+		}
+
+		// 将题目ID列表转换为JSON字符串
+		questionIDs, err := json.Marshal(req.QuestionIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "题目列表序列化失败"})
+			return
+		}
+		paper.Questions = string(questionIDs)
+	}
+
+	// 更新试卷信息
+	paper.Title = req.Title
+	paper.Description = req.Description
+	paper.Grade = req.Grade
+	paper.Subject = req.Subject
+	paper.Type = req.Type
+	paper.Difficulty = req.Difficulty
+	paper.Status = req.Status
+	paper.Duration = req.Duration
+	paper.TotalScore = req.TotalScore
+	paper.StartTime = req.StartTime
+	paper.EndTime = req.EndTime
+
+	if err := database.DB.Save(&paper).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新试卷失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "试卷更新成功", "id": paper.ID})
+}
+
 func SubmitPaper(c *gin.Context) {
 	id := c.Param("id")
 	paperID, err := strconv.ParseUint(id, 10, 32)

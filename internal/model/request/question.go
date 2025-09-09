@@ -6,9 +6,9 @@ type CreateQuestionRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Type        string `json:"type" binding:"required"`
 	Difficulty  int    `json:"difficulty" binding:"required,min=1,max=5"`
-	Grade       string `json:"grade"`       // 年级
-	Subject     string `json:"subject"`     // 科目
-	Topic       string `json:"topic"`       // 主题
+	Grade       string `json:"grade"`   // 年级
+	Subject     string `json:"subject"` // 科目
+	Topic       string `json:"topic"`   // 主题
 	Options     string `json:"options"`
 	Answer      string `json:"answer" binding:"required"`
 	Explanation string `json:"explanation"`
@@ -21,9 +21,9 @@ type CreateQuestionRequest struct {
 type UpdateQuestionRequest struct {
 	Title       string `json:"title"`
 	Difficulty  int    `json:"difficulty" binding:"min=1,max=5"`
-	Grade       string `json:"grade"`       // 年级
-	Subject     string `json:"subject"`     // 科目
-	Topic       string `json:"topic"`       // 主题
+	Grade       string `json:"grade"`   // 年级
+	Subject     string `json:"subject"` // 科目
+	Topic       string `json:"topic"`   // 主题
 	Options     string `json:"options"`
 	Answer      string `json:"answer"`
 	Explanation string `json:"explanation"`
@@ -34,18 +34,18 @@ type UpdateQuestionRequest struct {
 }
 
 type CreatePaperRequest struct {
-	Title        string     `json:"title" binding:"required"`
-	Description  string     `json:"description"`
-	Grade        string     `json:"grade" binding:"required"`
-	Subject      string     `json:"subject" binding:"required"`
-	Type         string     `json:"type" binding:"required,oneof=practice exam training"`
-	Difficulty   string     `json:"difficulty" binding:"required,oneof=easy medium hard"`
-	Status       string     `json:"status" binding:"required,oneof=draft published"`
-	QuestionIDs  []uint     `json:"question_ids" binding:"required"`
-	Duration     int        `json:"duration" binding:"required,min=1"`
-	TotalScore   int        `json:"total_score" binding:"required,min=1"`
-	StartTime    *time.Time `json:"start_time"`
-	EndTime      *time.Time `json:"end_time"`
+	Title       string     `json:"title" binding:"required"`
+	Description string     `json:"description"`
+	Grade       string     `json:"grade" binding:"required"`
+	Subject     string     `json:"subject" binding:"required"`
+	Type        string     `json:"type" binding:"required,oneof=practice exam training"`
+	Difficulty  string     `json:"difficulty" binding:"required,oneof=easy medium hard"`
+	Status      string     `json:"status" binding:"required,oneof=draft published"`
+	QuestionIDs []uint     `json:"question_ids"`
+	Duration    int        `json:"duration" binding:"required,min=1"`
+	TotalScore  int        `json:"total_score" binding:"required,min=1"`
+	StartTime   *time.Time `json:"start_time"`
+	EndTime     *time.Time `json:"end_time"`
 }
 
 type SubmitAnswerRequest struct {

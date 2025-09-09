@@ -224,7 +224,7 @@ func DeleteQuestion(c *gin.Context) {
 func AnswerQuestion(c *gin.Context) {
 	questionID := c.Param("id")
 	userID := c.GetUint("userID")
-	
+
 	var req request.SingleAnswerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -298,14 +298,19 @@ func GetRandomQuestions(c *gin.Context) {
 
 	// 添加调试日志
 	grade := c.Query("grade")
-	subject := c.Query("subject") 
+	subject := c.Query("subject")
 	difficulty := c.Query("difficulty")
 	qType := c.Query("type")
 	topic := c.Query("topic")
 	tags := c.Query("tags")
-	
+
 	println("=== GetRandomQuestions Debug ===")
 	println("Requested params - grade:", grade, "subject:", subject, "difficulty:", difficulty, "type:", qType, "topic:", topic, "tags:", tags, "count:", count)
+
+	// 首先检查数据库中是否有任何题目
+	var totalQuestionCount int64
+	database.DB.Model(&entity.Question{}).Count(&totalQuestionCount)
+	println("Total questions in database:", totalQuestionCount)
 
 	query := database.DB.Model(&entity.Question{})
 
@@ -319,7 +324,7 @@ func GetRandomQuestions(c *gin.Context) {
 		// 将字符串难度转换为数字
 		difficultyMap := map[string]int{
 			"easy":   1,
-			"medium": 2, 
+			"medium": 2,
 			"hard":   3,
 		}
 		if diffNum, ok := difficultyMap[difficulty]; ok {
@@ -351,13 +356,13 @@ func GetRandomQuestions(c *gin.Context) {
 	}
 
 	var questions []entity.Question
-	
+
 	// 先查询总数以便调试
 	var totalCount int64
 	query.Count(&totalCount)
 	println("Found", totalCount, "questions matching criteria")
-	
-	// 如果没有找到匹配的题目，查询所有题目的样本数据
+
+	// 如果没有找到匹配的题目，使用降级查询策略
 	if totalCount == 0 {
 		var sampleQuestions []entity.Question
 		database.DB.Model(&entity.Question{}).Limit(3).Find(&sampleQuestions)
@@ -365,8 +370,40 @@ func GetRandomQuestions(c *gin.Context) {
 		for _, q := range sampleQuestions {
 			println("ID:", q.ID, "Grade:", q.Grade, "Subject:", q.Subject, "Difficulty:", q.Difficulty, "Type:", string(q.Type))
 		}
+
+		println("Trying fallback queries...")
+
+		// 降级策略1: 只匹配科目和年级
+		if subject != "" && grade != "" {
+			fallbackQuery := database.DB.Model(&entity.Question{}).Where("subject = ? AND grade = ?", subject, grade)
+			fallbackQuery.Count(&totalCount)
+			println("Fallback 1 (subject + grade):", totalCount, "results")
+			if totalCount > 0 {
+				query = fallbackQuery
+			}
+		}
+
+		// 降级策略2: 只匹配科目
+		if totalCount == 0 && subject != "" {
+			fallbackQuery := database.DB.Model(&entity.Question{}).Where("subject = ?", subject)
+			fallbackQuery.Count(&totalCount)
+			println("Fallback 2 (subject only):", totalCount, "results")
+			if totalCount > 0 {
+				query = fallbackQuery
+			}
+		}
+
+		// 降级策略3: 获取任意题目
+		if totalCount == 0 {
+			fallbackQuery := database.DB.Model(&entity.Question{})
+			fallbackQuery.Count(&totalCount)
+			println("Fallback 3 (any questions):", totalCount, "results")
+			if totalCount > 0 {
+				query = fallbackQuery
+			}
+		}
 	}
-	
+
 	// 使用更可靠的随机查询方式
 	if err := query.Order("id DESC").Limit(count * 3).Find(&questions).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目失败"})
@@ -383,11 +420,10 @@ func GetRandomQuestions(c *gin.Context) {
 		}
 		questions = questions[:count]
 	}
-	
+
 	println("Returning", len(questions), "questions")
 	c.JSON(http.StatusOK, questions)
 }
-
 
 // 辅助函数：检查答案是否正确
 func checkAnswer(correctAnswer, userAnswer string) bool {
@@ -410,7 +446,7 @@ func checkAnswer(correctAnswer, userAnswer string) bool {
 // @Router /api/v1/questions/{id}/statistics [get]
 func GetQuestionStatistics(c *gin.Context) {
 	questionID := c.Param("id")
-	
+
 	// 验证题目是否存在
 	var question entity.Question
 	if err := database.DB.First(&question, questionID).Error; err != nil {
@@ -439,7 +475,6 @@ func GetQuestionStatistics(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
-
 
 // 辅助函数：字符串转整数
 func mustParseInt(s string) int {
