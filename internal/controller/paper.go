@@ -92,10 +92,21 @@ func GetPaper(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":        paper.ID,
-		"title":     paper.Title,
-		"duration":  paper.Duration,
-		"questions": questions,
+		"id":          paper.ID,
+		"title":       paper.Title,
+		"description": paper.Description,
+		"grade":       paper.Grade,
+		"subject":     paper.Subject,
+		"type":        paper.Type,
+		"difficulty":  paper.Difficulty,
+		"status":      paper.Status,
+		"duration":    paper.Duration,
+		"total_score": paper.TotalScore,
+		"start_time":  paper.StartTime,
+		"end_time":    paper.EndTime,
+		"questions":   questions,
+		"created_at":  paper.CreatedAt,
+		"updated_at":  paper.UpdatedAt,
 	})
 }
 
@@ -255,10 +266,62 @@ func GetPaperResult(c *gin.Context) {
 }
 
 func ListPapers(c *gin.Context) {
+	// 构建响应结构体
+	type PaperWithStats struct {
+		entity.Paper
+		AttemptCount int     `json:"attempt_count"`
+		AverageScore float64 `json:"average_score"`
+	}
+
 	var papers []entity.Paper
 	if err := database.DB.Preload("Creator").Find(&papers).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取试卷列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": papers, "total": len(papers)})
+
+	// 为每个试卷添加统计数据
+	var papersWithStats []PaperWithStats
+	for _, paper := range papers {
+		// 统计参与人数：查询该试卷的不重复用户数
+		var attemptCount int64
+		database.DB.Model(&entity.UserAnswer{}).
+			Where("paper_id = ?", paper.ID).
+			Distinct("user_id").
+			Count(&attemptCount)
+
+		// 计算平均分：获取该试卷所有用户的总分，然后计算平均值
+		var averageScore float64
+		if attemptCount > 0 {
+			// 获取每个用户的总分
+			var userScores []struct {
+				UserID     uint
+				TotalScore int
+			}
+
+			database.DB.Model(&entity.UserAnswer{}).
+				Select("user_id, SUM(score) as total_score").
+				Where("paper_id = ?", paper.ID).
+				Group("user_id").
+				Scan(&userScores)
+
+			// 计算平均分
+			if len(userScores) > 0 {
+				var totalSum int
+				for _, score := range userScores {
+					totalSum += score.TotalScore
+				}
+				averageScore = float64(totalSum) / float64(len(userScores))
+			}
+		}
+
+		// 创建包含统计数据的试卷对象
+		paperWithStats := PaperWithStats{
+			Paper:        paper,
+			AttemptCount: int(attemptCount),
+			AverageScore: averageScore,
+		}
+		papersWithStats = append(papersWithStats, paperWithStats)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": papersWithStats, "total": len(papersWithStats)})
 }
