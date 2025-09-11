@@ -16,10 +16,10 @@ import (
 // subjectNameToCode 将科目中文名称转换为英文代码
 func subjectNameToCode(name string) string {
 	subjectMap := map[string]string{
-		"数学":   "math",
+		"数学":     "math",
 		"语言词汇": "vocabulary",
-		"阅读":   "reading",
-		"识字":   "literacy",
+		"阅读":     "reading",
+		"识字":     "literacy",
 	}
 	if code, exists := subjectMap[name]; exists {
 		return code
@@ -70,7 +70,6 @@ func CreatePaper(c *gin.Context) {
 		Difficulty:  req.Difficulty,
 		Status:      req.Status,
 		Questions:   string(questionIDs),
-		Duration:    req.Duration,
 		TotalScore:  req.TotalScore,
 		StartTime:   req.StartTime,
 		EndTime:     req.EndTime,
@@ -115,7 +114,6 @@ func GetPaper(c *gin.Context) {
 		"type":        paper.Type,
 		"difficulty":  paper.Difficulty,
 		"status":      paper.Status,
-		"duration":    paper.Duration,
 		"total_score": paper.TotalScore,
 		"start_time":  paper.StartTime,
 		"end_time":    paper.EndTime,
@@ -178,7 +176,6 @@ func UpdatePaper(c *gin.Context) {
 	paper.Type = req.Type
 	paper.Difficulty = req.Difficulty
 	paper.Status = req.Status
-	paper.Duration = req.Duration
 	paper.TotalScore = req.TotalScore
 	paper.StartTime = req.StartTime
 	paper.EndTime = req.EndTime
@@ -283,25 +280,25 @@ func GetPaperResult(c *gin.Context) {
 func ListPapers(c *gin.Context) {
 	// 构建响应结构体
 	type PaperWithStats struct {
-		ID           uint       `json:"id"`
-		Title        string     `json:"title"`
-		Description  string     `json:"description"`
-		CreatorID    uint       `json:"creator_id"`
-		Grade        string     `json:"grade"`
-		Subject      string     `json:"subject"`      // 将被转换为英文代码
-		Type         string     `json:"type"`
-		Difficulty   string     `json:"difficulty"`
-		Status       string     `json:"status"`
-		Questions    string     `json:"questions"`
-		Duration     int        `json:"duration"`
-		TotalScore   int        `json:"total_score"`
-		StartTime    *time.Time `json:"start_time"`
-		EndTime      *time.Time `json:"end_time"`
-		CreatedAt    time.Time  `json:"created_at"`
-		UpdatedAt    time.Time  `json:"updated_at"`
+		ID           uint        `json:"id"`
+		Title        string      `json:"title"`
+		Description  string      `json:"description"`
+		CreatorID    uint        `json:"creator_id"`
+		Grade        string      `json:"grade"`
+		Subject      string      `json:"subject"` // 将被转换为英文代码
+		Type         string      `json:"type"`
+		Difficulty   string      `json:"difficulty"`
+		Status       string      `json:"status"`
+		Questions    string      `json:"questions"`
+		Duration     int         `json:"duration"`
+		TotalScore   int         `json:"total_score"`
+		StartTime    *time.Time  `json:"start_time"`
+		EndTime      *time.Time  `json:"end_time"`
+		CreatedAt    time.Time   `json:"created_at"`
+		UpdatedAt    time.Time   `json:"updated_at"`
 		Creator      entity.User `json:"creator,omitempty"`
-		AttemptCount int        `json:"attempt_count"`
-		AverageScore float64    `json:"average_score"`
+		AttemptCount int         `json:"attempt_count"`
+		AverageScore float64     `json:"average_score"`
 	}
 
 	var papers []entity.Paper
@@ -352,7 +349,7 @@ func ListPapers(c *gin.Context) {
 			Description:  paper.Description,
 			CreatorID:    paper.CreatorID,
 			Grade:        paper.Grade,
-			Subject:      subjectNameToCode(paper.Subject),  // 转换为英文代码
+			Subject:      subjectNameToCode(paper.Subject), // 转换为英文代码
 			Type:         paper.Type,
 			Difficulty:   paper.Difficulty,
 			Status:       paper.Status,
