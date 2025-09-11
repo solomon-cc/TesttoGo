@@ -58,8 +58,6 @@ func CreateHomework(c *gin.Context) {
 		StartDate:             req.StartDate,
 		EndDate:               req.EndDate,
 		QuestionsPerDay:       req.QuestionsPerDay,
-		IsTimeLimited:         req.IsTimeLimited,
-		TimeLimit:             req.TimeLimit,
 		ShowHints:             req.ShowHints,
 		ReinforcementSettings: string(reinforcementJSON),
 	}
@@ -336,12 +334,6 @@ func UpdateHomework(c *gin.Context) {
 	if req.QuestionsPerDay != nil {
 		updates["questions_per_day"] = *req.QuestionsPerDay
 	}
-	if req.IsTimeLimited != nil {
-		updates["is_time_limited"] = *req.IsTimeLimited
-	}
-	if req.TimeLimit != nil {
-		updates["time_limit"] = *req.TimeLimit
-	}
 	if req.ShowHints != nil {
 		updates["show_hints"] = *req.ShowHints
 	}
@@ -473,8 +465,6 @@ func CopyHomework(c *gin.Context) {
 		StartDate:             req.NewStartDate,
 		EndDate:               req.NewEndDate,
 		QuestionsPerDay:       sourceHomework.QuestionsPerDay,
-		IsTimeLimited:         sourceHomework.IsTimeLimited,
-		TimeLimit:             sourceHomework.TimeLimit,
 		ShowHints:             sourceHomework.ShowHints,
 		ReinforcementSettings: sourceHomework.ReinforcementSettings,
 	}
@@ -742,8 +732,6 @@ func convertToHomeworkResponse(hw *entity.Homework) response.HomeworkResponse {
 		StartDate:             hw.StartDate,
 		EndDate:               hw.EndDate,
 		QuestionsPerDay:       hw.QuestionsPerDay,
-		IsTimeLimited:         hw.IsTimeLimited,
-		TimeLimit:             hw.TimeLimit,
 		ShowHints:             hw.ShowHints,
 		ReinforcementSettings: reinforcementSettings,
 		CreatedAt:             hw.CreatedAt,

@@ -12,8 +12,6 @@ type CreateHomeworkRequest struct {
 	StartDate             time.Time                  `json:"start_date" binding:"required"`
 	EndDate               time.Time                  `json:"end_date" binding:"required"`
 	QuestionsPerDay       int                        `json:"questions_per_day" binding:"min=1,max=100"`
-	IsTimeLimited         bool                       `json:"is_time_limited"`
-	TimeLimit             int                        `json:"time_limit"`
 	ShowHints             bool                       `json:"show_hints"`
 	ReinforcementSettings map[string]interface{}     `json:"reinforcement_settings"`
 	StudentAssignments    []HomeworkAssignmentRequest `json:"student_assignments"`
@@ -40,8 +38,6 @@ type UpdateHomeworkRequest struct {
 	Status                *string                    `json:"status,omitempty"`
 	EndDate               *time.Time                 `json:"end_date,omitempty"`
 	QuestionsPerDay       *int                       `json:"questions_per_day,omitempty"`
-	IsTimeLimited         *bool                      `json:"is_time_limited,omitempty"`
-	TimeLimit             *int                       `json:"time_limit,omitempty"`
 	ShowHints             *bool                      `json:"show_hints,omitempty"`
 	ReinforcementSettings *map[string]interface{}    `json:"reinforcement_settings,omitempty"`
 }

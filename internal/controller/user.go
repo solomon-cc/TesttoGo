@@ -15,13 +15,15 @@ import (
 )
 
 // @Summary 获取用户列表
-// @Description 获取用户列表，支持分页
+// @Description 获取用户列表，支持分页和筛选
 // @Tags 用户
 // @Accept json
 // @Produce json
 // @Security BasicAuth
 // @Param page query integer false "页码，默认1"
 // @Param page_size query integer false "每页数量，默认10"
+// @Param role query string false "角色筛选，可选值：user, teacher, admin"
+// @Param status query string false "状态筛选，可选值：active"
 // @Success 200 {object} map[string]interface{} "用户列表和总数"
 // @Failure 500 {object} map[string]interface{} "服务器内部错误"
 // @Router /api/v1/users [get]
@@ -29,11 +31,36 @@ func ListUsers(c *gin.Context) {
 	var users []entity.User
 	query := database.DB.Order("id desc")
 
+	// 筛选参数
+	role := c.Query("role")
+	status := c.Query("status")
+
+	// 应用筛选条件
+	if role != "" {
+		query = query.Where("role = ?", role)
+	}
+	
+	// status筛选（假设active表示正常用户，可以根据实际业务逻辑调整）
+	if status == "active" {
+		// 这里可以添加状态筛选逻辑，比如筛选未被删除的用户
+		// 由于使用了gorm的软删除，deleted_at为null的就是active状态
+		query = query.Where("deleted_at IS NULL")
+	}
+
 	// 分页
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	
+	// 计算总数（应用相同的筛选条件）
 	var total int64
-	database.DB.Model(&entity.User{}).Count(&total)
+	countQuery := database.DB.Model(&entity.User{})
+	if role != "" {
+		countQuery = countQuery.Where("role = ?", role)
+	}
+	if status == "active" {
+		countQuery = countQuery.Where("deleted_at IS NULL")
+	}
+	countQuery.Count(&total)
 
 	err := query.Select("id, username, role, created_at, updated_at").
 		Offset((page - 1) * pageSize).

@@ -16,8 +16,6 @@ type HomeworkResponse struct {
 	StartDate             time.Time                    `json:"start_date"`
 	EndDate               time.Time                    `json:"end_date"`
 	QuestionsPerDay       int                          `json:"questions_per_day"`
-	IsTimeLimited         bool                         `json:"is_time_limited"`
-	TimeLimit             int                          `json:"time_limit"`
 	ShowHints             bool                         `json:"show_hints"`
 	ReinforcementSettings map[string]interface{}       `json:"reinforcement_settings"`
 	CreatedAt             time.Time                    `json:"created_at"`

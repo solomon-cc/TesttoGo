@@ -34,13 +34,63 @@ func CreateQuestion(c *gin.Context) {
 	}
 
 	userID := c.GetUint("userID")
+
+	// 验证科目和主题关系
+	var subjectID, topicID *uint
+	var subjectCode, topicCode string
+
+	// 优先使用ID字段，如果没有则使用字符串字段进行查找
+	if req.SubjectID != nil && req.TopicID != nil && *req.SubjectID > 0 && *req.TopicID > 0 {
+		// 验证科目存在
+		var subject entity.Subject
+		if err := database.DB.Where("id = ? AND is_active = ?", *req.SubjectID, true).First(&subject).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "科目不存在或已禁用"})
+			return
+		}
+
+		// 验证主题存在并且属于该科目
+		var topic entity.Topic
+		if err := database.DB.Where("id = ? AND subject_id = ? AND is_active = ?", *req.TopicID, *req.SubjectID, true).First(&topic).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "主题不存在或不属于该科目"})
+			return
+		}
+
+		subjectID = req.SubjectID
+		topicID = req.TopicID
+		subjectCode = subject.Code
+		topicCode = topic.Code
+	} else if req.Subject != "" && req.Topic != "" {
+		// 使用字符串查找对应的ID
+		var subject entity.Subject
+		if err := database.DB.Where("code = ? AND is_active = ?", req.Subject, true).First(&subject).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "科目代码不存在: " + req.Subject})
+			return
+		}
+
+		var topic entity.Topic
+		if err := database.DB.Where("code = ? AND subject_id = ? AND is_active = ?", req.Topic, subject.ID, true).First(&topic).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "主题代码不存在或不属于该科目: " + req.Topic})
+			return
+		}
+
+		subjectID = &subject.ID
+		topicID = &topic.ID
+		subjectCode = req.Subject
+		topicCode = req.Topic
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "必须提供科目和主题信息（ID或代码）"})
+		return
+	}
+
 	question := entity.Question{
 		Title:       req.Title,
 		Type:        entity.QuestionType(req.Type),
 		Difficulty:  req.Difficulty,
 		Grade:       req.Grade,
-		Subject:     req.Subject,
-		Topic:       req.Topic,
+		SubjectID:   subjectID,
+		TopicID:     topicID,
+		Subject:     subjectCode, // 保持向后兼容
+		Topic:       topicCode,   // 保持向后兼容
 		Options:     req.Options,
 		Answer:      req.Answer,
 		Explanation: req.Explanation,
@@ -56,7 +106,17 @@ func CreateQuestion(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"id": question.ID})
+	// 重新查询题目以获取关联的科目和主题信息
+	var createdQuestion entity.Question
+	if err := database.DB.Preload("SubjectRef").Preload("TopicRef").First(&createdQuestion, question.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取创建的题目信息失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":       createdQuestion.ID,
+		"question": createdQuestion,
+	})
 }
 
 // @Summary 获取题目列表
@@ -75,9 +135,9 @@ func CreateQuestion(c *gin.Context) {
 // @Router /api/v1/questions [get]
 func ListQuestions(c *gin.Context) {
 	var questions []entity.Question
-	query := database.DB.Order("id desc")
+	query := database.DB.Preload("SubjectRef").Preload("TopicRef").Order("id desc")
 
-	// 支持按类型、难度、年级、科目、主题过滤
+	// 支持按类型、难度、年级过滤
 	if qType := c.Query("type"); qType != "" {
 		query = query.Where("type = ?", qType)
 	}
@@ -87,11 +147,33 @@ func ListQuestions(c *gin.Context) {
 	if grade := c.Query("grade"); grade != "" {
 		query = query.Where("grade = ?", grade)
 	}
-	if subject := c.Query("subject"); subject != "" {
-		query = query.Where("subject = ?", subject)
+
+	// 支持按科目过滤 - 优先使用ID，兼容字符串
+	if subjectID := c.Query("subject_id"); subjectID != "" {
+		query = query.Where("subject_id = ?", subjectID)
+	} else if subject := c.Query("subject"); subject != "" {
+		// 兼容字符串查询 - 查找对应的科目ID
+		var subjectEntity entity.Subject
+		if err := database.DB.Where("code = ? AND is_active = ?", subject, true).First(&subjectEntity).Error; err == nil {
+			query = query.Where("subject_id = ?", subjectEntity.ID)
+		} else {
+			// 如果找不到科目ID，则使用旧的字符串匹配
+			query = query.Where("subject = ?", subject)
+		}
 	}
-	if topic := c.Query("topic"); topic != "" {
-		query = query.Where("topic = ?", topic)
+
+	// 支持按主题过滤 - 优先使用ID，兼容字符串
+	if topicID := c.Query("topic_id"); topicID != "" {
+		query = query.Where("topic_id = ?", topicID)
+	} else if topic := c.Query("topic"); topic != "" {
+		// 兼容字符串查询 - 查找对应的主题ID
+		var topicEntity entity.Topic
+		if err := database.DB.Where("code = ? AND is_active = ?", topic, true).First(&topicEntity).Error; err == nil {
+			query = query.Where("topic_id = ?", topicEntity.ID)
+		} else {
+			// 如果找不到主题ID，则使用旧的字符串匹配
+			query = query.Where("topic = ?", topic)
+		}
 	}
 
 	// 分页
@@ -340,14 +422,32 @@ func GetRandomQuestions(c *gin.Context) {
 		query = query.Where("grade = ?", grade)
 	}
 
-	// 按科目过滤
-	if subject := c.Query("subject"); subject != "" {
-		query = query.Where("subject = ?", subject)
+	// 按科目过滤 - 支持ID和代码
+	if subjectID := c.Query("subject_id"); subjectID != "" {
+		query = query.Where("subject_id = ?", subjectID)
+	} else if subject := c.Query("subject"); subject != "" {
+		// 兼容字符串查询 - 查找对应的科目ID
+		var subjectEntity entity.Subject
+		if err := database.DB.Where("code = ? AND is_active = ?", subject, true).First(&subjectEntity).Error; err == nil {
+			query = query.Where("subject_id = ?", subjectEntity.ID)
+		} else {
+			// 如果找不到科目ID，则使用旧的字符串匹配
+			query = query.Where("subject = ?", subject)
+		}
 	}
 
-	// 按主题过滤
-	if topic := c.Query("topic"); topic != "" {
-		query = query.Where("topic = ?", topic)
+	// 按主题过滤 - 支持ID和代码
+	if topicID := c.Query("topic_id"); topicID != "" {
+		query = query.Where("topic_id = ?", topicID)
+	} else if topic := c.Query("topic"); topic != "" {
+		// 兼容字符串查询 - 查找对应的主题ID
+		var topicEntity entity.Topic
+		if err := database.DB.Where("code = ? AND is_active = ?", topic, true).First(&topicEntity).Error; err == nil {
+			query = query.Where("topic_id = ?", topicEntity.ID)
+		} else {
+			// 如果找不到主题ID，则使用旧的字符串匹配
+			query = query.Where("topic = ?", topic)
+		}
 	}
 
 	// 按标签过滤

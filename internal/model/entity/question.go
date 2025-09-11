@@ -26,8 +26,10 @@ type Question struct {
 	Type        QuestionType   `gorm:"type:varchar(20)" json:"type"`
 	Difficulty  int            `gorm:"type:tinyint;default:1" json:"difficulty"` // 1-5
 	Grade       string         `gorm:"type:varchar(20)" json:"grade"`            // 年级: grade1, grade2, etc.
-	Subject     string         `gorm:"type:varchar(50)" json:"subject"`          // 科目: math, vocabulary, reading, literacy
-	Topic       string         `gorm:"type:varchar(100)" json:"topic"`           // 主题: addition, subtraction, etc.
+	SubjectID   *uint          `json:"subject_id"`                               // 科目外键
+	TopicID     *uint          `json:"topic_id"`                                 // 主题外键
+	Subject     string         `gorm:"type:varchar(50)" json:"subject"`          // 科目: math, vocabulary, reading, literacy (保持向后兼容)
+	Topic       string         `gorm:"type:varchar(100)" json:"topic"`           // 主题: addition, subtraction, etc. (保持向后兼容)
 	Options     string         `gorm:"type:text" json:"options"`                 // JSON格式存储选项 - 支持文字和图片混合
 	Answer      string         `gorm:"type:text" json:"answer"`
 	Explanation string         `gorm:"type:text" json:"explanation"` // 答案解释
@@ -40,6 +42,11 @@ type Question struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// 关联关系
+	SubjectRef *Subject `gorm:"foreignKey:SubjectID" json:"subject_ref,omitempty"`
+	TopicRef   *Topic   `gorm:"foreignKey:TopicID" json:"topic_ref,omitempty"`
+	Creator    User     `gorm:"foreignKey:CreatorID" json:"creator,omitempty"`
 }
 
 type UserAnswer struct {

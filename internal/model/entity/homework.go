@@ -35,8 +35,6 @@ type Homework struct {
 	StartDate             time.Time            `json:"start_date"`
 	EndDate               time.Time            `json:"end_date"`
 	QuestionsPerDay       int                  `gorm:"default:10" json:"questions_per_day"`
-	IsTimeLimited         bool                 `gorm:"default:false" json:"is_time_limited"`
-	TimeLimit             int                  `gorm:"default:0" json:"time_limit"` // minutes
 	ShowHints             bool                 `gorm:"default:true" json:"show_hints"`
 	ReinforcementSettings string               `gorm:"type:text" json:"reinforcement_settings"` // JSON data
 	CreatedAt             time.Time            `json:"created_at"`

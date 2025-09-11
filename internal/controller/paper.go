@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"testogo/internal/model/entity"
 	"testogo/internal/model/request"
@@ -11,6 +12,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// subjectNameToCode 将科目中文名称转换为英文代码
+func subjectNameToCode(name string) string {
+	subjectMap := map[string]string{
+		"数学":   "math",
+		"语言词汇": "vocabulary",
+		"阅读":   "reading",
+		"识字":   "literacy",
+	}
+	if code, exists := subjectMap[name]; exists {
+		return code
+	}
+	return name // 如果映射不存在，返回原值
+}
 
 // @Summary 创建试卷
 // @Description 创建新的试卷
@@ -96,7 +111,7 @@ func GetPaper(c *gin.Context) {
 		"title":       paper.Title,
 		"description": paper.Description,
 		"grade":       paper.Grade,
-		"subject":     paper.Subject,
+		"subject":     subjectNameToCode(paper.Subject),
 		"type":        paper.Type,
 		"difficulty":  paper.Difficulty,
 		"status":      paper.Status,
@@ -268,9 +283,25 @@ func GetPaperResult(c *gin.Context) {
 func ListPapers(c *gin.Context) {
 	// 构建响应结构体
 	type PaperWithStats struct {
-		entity.Paper
-		AttemptCount int     `json:"attempt_count"`
-		AverageScore float64 `json:"average_score"`
+		ID           uint       `json:"id"`
+		Title        string     `json:"title"`
+		Description  string     `json:"description"`
+		CreatorID    uint       `json:"creator_id"`
+		Grade        string     `json:"grade"`
+		Subject      string     `json:"subject"`      // 将被转换为英文代码
+		Type         string     `json:"type"`
+		Difficulty   string     `json:"difficulty"`
+		Status       string     `json:"status"`
+		Questions    string     `json:"questions"`
+		Duration     int        `json:"duration"`
+		TotalScore   int        `json:"total_score"`
+		StartTime    *time.Time `json:"start_time"`
+		EndTime      *time.Time `json:"end_time"`
+		CreatedAt    time.Time  `json:"created_at"`
+		UpdatedAt    time.Time  `json:"updated_at"`
+		Creator      entity.User `json:"creator,omitempty"`
+		AttemptCount int        `json:"attempt_count"`
+		AverageScore float64    `json:"average_score"`
 	}
 
 	var papers []entity.Paper
@@ -314,9 +345,25 @@ func ListPapers(c *gin.Context) {
 			}
 		}
 
-		// 创建包含统计数据的试卷对象
+		// 创建包含统计数据的试卷对象，转换subject字段
 		paperWithStats := PaperWithStats{
-			Paper:        paper,
+			ID:           paper.ID,
+			Title:        paper.Title,
+			Description:  paper.Description,
+			CreatorID:    paper.CreatorID,
+			Grade:        paper.Grade,
+			Subject:      subjectNameToCode(paper.Subject),  // 转换为英文代码
+			Type:         paper.Type,
+			Difficulty:   paper.Difficulty,
+			Status:       paper.Status,
+			Questions:    paper.Questions,
+			Duration:     paper.Duration,
+			TotalScore:   paper.TotalScore,
+			StartTime:    paper.StartTime,
+			EndTime:      paper.EndTime,
+			CreatedAt:    paper.CreatedAt,
+			UpdatedAt:    paper.UpdatedAt,
+			Creator:      paper.Creator,
 			AttemptCount: int(attemptCount),
 			AverageScore: averageScore,
 		}
