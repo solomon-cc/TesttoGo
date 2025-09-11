@@ -6,11 +6,11 @@ type CreateQuestionRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Type        string `json:"type" binding:"required"`
 	Difficulty  int    `json:"difficulty" binding:"required,min=1,max=5"`
-	Grade       string `json:"grade"`     // 年级
+	Grade       string `json:"grade"`      // 年级
 	SubjectID   *uint  `json:"subject_id"` // 科目ID (新字段，优先使用)
 	TopicID     *uint  `json:"topic_id"`   // 主题ID (新字段，优先使用)
-	Subject     string `json:"subject"`   // 科目 (保持向后兼容)
-	Topic       string `json:"topic"`     // 主题 (保持向后兼容)
+	Subject     string `json:"subject"`    // 科目 (保持向后兼容)
+	Topic       string `json:"topic"`      // 主题 (保持向后兼容)
 	Options     string `json:"options"`
 	Answer      string `json:"answer" binding:"required"`
 	Explanation string `json:"explanation"`
@@ -23,11 +23,11 @@ type CreateQuestionRequest struct {
 type UpdateQuestionRequest struct {
 	Title       string `json:"title"`
 	Difficulty  int    `json:"difficulty" binding:"min=1,max=5"`
-	Grade       string `json:"grade"`     // 年级
+	Grade       string `json:"grade"`      // 年级
 	SubjectID   *uint  `json:"subject_id"` // 科目ID (新字段，优先使用)
 	TopicID     *uint  `json:"topic_id"`   // 主题ID (新字段，优先使用)
-	Subject     string `json:"subject"`   // 科目 (保持向后兼容)
-	Topic       string `json:"topic"`     // 主题 (保持向后兼容)
+	Subject     string `json:"subject"`    // 科目 (保持向后兼容)
+	Topic       string `json:"topic"`      // 主题 (保持向后兼容)
 	Options     string `json:"options"`
 	Answer      string `json:"answer"`
 	Explanation string `json:"explanation"`
@@ -46,7 +46,6 @@ type CreatePaperRequest struct {
 	Difficulty  string     `json:"difficulty" binding:"required,oneof=easy medium hard"`
 	Status      string     `json:"status" binding:"required,oneof=draft published"`
 	QuestionIDs []uint     `json:"question_ids"`
-	Duration    int        `json:"duration" binding:"required,min=1"`
 	TotalScore  int        `json:"total_score" binding:"required,min=1"`
 	StartTime   *time.Time `json:"start_time"`
 	EndTime     *time.Time `json:"end_time"`
