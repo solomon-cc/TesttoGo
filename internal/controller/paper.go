@@ -16,10 +16,10 @@ import (
 // subjectNameToCode 将科目中文名称转换为英文代码
 func subjectNameToCode(name string) string {
 	subjectMap := map[string]string{
-		"数学":     "math",
+		"数学":   "math",
 		"语言词汇": "vocabulary",
-		"阅读":     "reading",
-		"识字":     "literacy",
+		"阅读":   "reading",
+		"识字":   "literacy",
 	}
 	if code, exists := subjectMap[name]; exists {
 		return code
