@@ -419,20 +419,43 @@ func GetRandomQuestions(c *gin.Context) {
 
 	// 按年级过滤
 	if grade := c.Query("grade"); grade != "" {
-		query = query.Where("grade = ?", grade)
+		println("Filtering by grade:", grade)
+		// 首先尝试将grade解析为数字ID
+		if gradeIDNum, err := strconv.Atoi(grade); err == nil && gradeIDNum > 0 {
+			// 如果是数字，尝试通过ID查找年级
+			var gradeEntity entity.Grade
+			if err := database.DB.Where("id = ? AND is_active = ?", gradeIDNum, true).First(&gradeEntity).Error; err == nil {
+				println("Found grade by ID:", gradeIDNum, "-> Code:", gradeEntity.Code)
+				query = query.Where("grade = ?", gradeEntity.Code)
+			} else {
+				// 如果找不到，直接使用数字匹配
+				query = query.Where("grade = ?", grade)
+			}
+		} else {
+			// 字符串匹配（如 grade1, grade2）
+			query = query.Where("grade = ?", grade)
+		}
 	}
 
 	// 按科目过滤 - 支持ID和代码
 	if subjectID := c.Query("subject_id"); subjectID != "" {
 		query = query.Where("subject_id = ?", subjectID)
 	} else if subject := c.Query("subject"); subject != "" {
-		// 兼容字符串查询 - 查找对应的科目ID
-		var subjectEntity entity.Subject
-		if err := database.DB.Where("code = ? AND is_active = ?", subject, true).First(&subjectEntity).Error; err == nil {
-			query = query.Where("subject_id = ?", subjectEntity.ID)
+		// 首先尝试将subject解析为数字ID
+		if subjectIDNum, err := strconv.Atoi(subject); err == nil && subjectIDNum > 0 {
+			println("Filtering by subject_id:", subjectIDNum)
+			query = query.Where("subject_id = ?", subjectIDNum)
 		} else {
-			// 如果找不到科目ID，则使用旧的字符串匹配
-			query = query.Where("subject = ?", subject)
+			// 兼容字符串查询 - 查找对应的科目ID
+			var subjectEntity entity.Subject
+			if err := database.DB.Where("code = ? AND is_active = ?", subject, true).First(&subjectEntity).Error; err == nil {
+				println("Found subject by code:", subject, "-> ID:", subjectEntity.ID)
+				query = query.Where("subject_id = ?", subjectEntity.ID)
+			} else {
+				// 如果找不到科目ID，则使用旧的字符串匹配
+				println("Using legacy subject matching:", subject)
+				query = query.Where("subject = ?", subject)
+			}
 		}
 	}
 
@@ -440,13 +463,21 @@ func GetRandomQuestions(c *gin.Context) {
 	if topicID := c.Query("topic_id"); topicID != "" {
 		query = query.Where("topic_id = ?", topicID)
 	} else if topic := c.Query("topic"); topic != "" {
-		// 兼容字符串查询 - 查找对应的主题ID
-		var topicEntity entity.Topic
-		if err := database.DB.Where("code = ? AND is_active = ?", topic, true).First(&topicEntity).Error; err == nil {
-			query = query.Where("topic_id = ?", topicEntity.ID)
+		// 首先尝试将topic解析为数字ID
+		if topicIDNum, err := strconv.Atoi(topic); err == nil && topicIDNum > 0 {
+			println("Filtering by topic_id:", topicIDNum)
+			query = query.Where("topic_id = ?", topicIDNum)
 		} else {
-			// 如果找不到主题ID，则使用旧的字符串匹配
-			query = query.Where("topic = ?", topic)
+			// 兼容字符串查询 - 查找对应的主题ID
+			var topicEntity entity.Topic
+			if err := database.DB.Where("code = ? AND is_active = ?", topic, true).First(&topicEntity).Error; err == nil {
+				println("Found topic by code:", topic, "-> ID:", topicEntity.ID)
+				query = query.Where("topic_id = ?", topicEntity.ID)
+			} else {
+				// 如果找不到主题ID，则使用旧的字符串匹配
+				println("Using legacy topic matching:", topic)
+				query = query.Where("topic = ?", topic)
+			}
 		}
 	}
 
