@@ -452,21 +452,7 @@ func GetRandomQuestions(c *gin.Context) {
 	// 按年级过滤
 	if grade := c.Query("grade"); grade != "" {
 		println("Filtering by grade:", grade)
-		// 首先尝试将grade解析为数字ID
-		if gradeIDNum, err := strconv.Atoi(grade); err == nil && gradeIDNum > 0 {
-			// 如果是数字，尝试通过ID查找年级
-			var gradeEntity entity.Grade
-			if err := database.DB.Where("id = ? AND is_active = ?", gradeIDNum, true).First(&gradeEntity).Error; err == nil {
-				println("Found grade by ID:", gradeIDNum, "-> Code:", gradeEntity.Code)
-				query = query.Where("grade = ?", gradeEntity.Code)
-			} else {
-				// 如果找不到，直接使用数字匹配
-				query = query.Where("grade = ?", grade)
-			}
-		} else {
-			// 字符串匹配（如 grade1, grade2）
-			query = query.Where("grade = ?", grade)
-		}
+		query = query.Where("grade = ?", grade)
 	}
 
 	// 按科目过滤 - 支持ID和代码
@@ -525,46 +511,11 @@ func GetRandomQuestions(c *gin.Context) {
 	query.Count(&totalCount)
 	println("Found", totalCount, "questions matching criteria")
 
-	// 如果没有找到匹配的题目，使用降级查询策略
+	// 如果没有找到匹配的题目，不使用降级策略，直接返回空结果
 	if totalCount == 0 {
-		var sampleQuestions []entity.Question
-		database.DB.Model(&entity.Question{}).Limit(3).Find(&sampleQuestions)
-		println("Sample questions in database:")
-		for _, q := range sampleQuestions {
-			println("ID:", q.ID, "Grade:", q.Grade, "Subject:", q.Subject, "Difficulty:", q.Difficulty, "Type:", string(q.Type))
-		}
-
-		println("Trying fallback queries...")
-
-		// 降级策略1: 只匹配科目和年级
-		if subject != "" && grade != "" {
-			fallbackQuery := database.DB.Model(&entity.Question{}).Where("subject = ? AND grade = ?", subject, grade)
-			fallbackQuery.Count(&totalCount)
-			println("Fallback 1 (subject + grade):", totalCount, "results")
-			if totalCount > 0 {
-				query = fallbackQuery
-			}
-		}
-
-		// 降级策略2: 只匹配科目
-		if totalCount == 0 && subject != "" {
-			fallbackQuery := database.DB.Model(&entity.Question{}).Where("subject = ?", subject)
-			fallbackQuery.Count(&totalCount)
-			println("Fallback 2 (subject only):", totalCount, "results")
-			if totalCount > 0 {
-				query = fallbackQuery
-			}
-		}
-
-		// 降级策略3: 获取任意题目
-		if totalCount == 0 {
-			fallbackQuery := database.DB.Model(&entity.Question{})
-			fallbackQuery.Count(&totalCount)
-			println("Fallback 3 (any questions):", totalCount, "results")
-			if totalCount > 0 {
-				query = fallbackQuery
-			}
-		}
+		println("No questions found matching the criteria, returning empty result")
+		c.JSON(http.StatusOK, []entity.Question{})
+		return
 	}
 
 	// 使用更可靠的随机查询方式
