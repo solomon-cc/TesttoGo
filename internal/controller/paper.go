@@ -301,8 +301,70 @@ func ListPapers(c *gin.Context) {
 		AverageScore float64     `json:"average_score"`
 	}
 
+	// 获取查询参数
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "10")
+	keyword := c.Query("keyword")
+	typeFilter := c.Query("type")
+	difficulty := c.Query("difficulty")
+	subject := c.Query("subject")
+
+	// 转换页码和页大小
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 10
+	}
+
+	// 构建查询条件
+	query := database.DB.Model(&entity.Paper{}).Preload("Creator")
+
+	// 关键词搜索（搜索标题和描述）
+	if keyword != "" {
+		query = query.Where("title LIKE ? OR description LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
+
+	// 试卷类型筛选
+	if typeFilter != "" {
+		query = query.Where("type = ?", typeFilter)
+	}
+
+	// 难度筛选
+	if difficulty != "" {
+		query = query.Where("difficulty = ?", difficulty)
+	}
+
+	// 科目筛选 - 需要将前端传入的英文代码转换为中文名称
+	if subject != "" {
+		// 将英文代码转换为中文名称
+		subjectCodeToName := map[string]string{
+			"math":       "数学",
+			"vocabulary": "语言词汇",
+			"reading":    "阅读",
+			"literacy":   "识字",
+		}
+		if chineseName, exists := subjectCodeToName[subject]; exists {
+			query = query.Where("subject = ?", chineseName)
+		} else {
+			// 如果映射不存在，直接使用原值
+			query = query.Where("subject = ?", subject)
+		}
+	}
+
+	// 获取总数
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取试卷总数失败"})
+		return
+	}
+
+	// 分页查询
 	var papers []entity.Paper
-	if err := database.DB.Preload("Creator").Find(&papers).Error; err != nil {
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&papers).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取试卷列表失败"})
 		return
 	}
@@ -367,5 +429,10 @@ func ListPapers(c *gin.Context) {
 		papersWithStats = append(papersWithStats, paperWithStats)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": papersWithStats, "total": len(papersWithStats)})
+	c.JSON(http.StatusOK, gin.H{
+		"data":     papersWithStats,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
 }
