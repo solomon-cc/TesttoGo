@@ -142,7 +142,24 @@ func ListQuestions(c *gin.Context) {
 		query = query.Where("type = ?", qType)
 	}
 	if difficulty := c.Query("difficulty"); difficulty != "" {
-		query = query.Where("difficulty = ?", difficulty)
+		// 将字符串难度转换为数字
+		var difficultyInt int
+		switch difficulty {
+		case "easy":
+			difficultyInt = 1
+		case "medium":
+			difficultyInt = 2
+		case "hard":
+			difficultyInt = 3
+		default:
+			// 如果是数字字符串，直接转换
+			if d, err := strconv.Atoi(difficulty); err == nil {
+				difficultyInt = d
+			} else {
+				difficultyInt = 1 // 默认简单
+			}
+		}
+		query = query.Where("difficulty = ?", difficultyInt)
 	}
 	if grade := c.Query("grade"); grade != "" {
 		query = query.Where("grade = ?", grade)
@@ -176,11 +193,21 @@ func ListQuestions(c *gin.Context) {
 		}
 	}
 
-	// 分页
+	// 分页处理 - 支持limit参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	// 如果有limit参数，使用limit作为page_size
+	if limitParam := c.Query("limit"); limitParam != "" {
+		if limit, err := strconv.Atoi(limitParam); err == nil && limit > 0 {
+			pageSize = limit
+			page = 1 // limit模式下默认获取第一页
+		}
+	}
+
+	// 使用相同的查询条件计算总数
 	var total int64
-	database.DB.Model(&entity.Question{}).Count(&total)
+	query.Model(&entity.Question{}).Count(&total)
 
 	err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&questions).Error
 	if err != nil {
@@ -225,6 +252,11 @@ func ListQuestions(c *gin.Context) {
 			CorrectRate: correctRate,
 		}
 		questionsWithStats = append(questionsWithStats, questionWithStats)
+	}
+
+	// 确保items始终是数组而不是null
+	if questionsWithStats == nil {
+		questionsWithStats = []response.QuestionWithStatsResponse{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
