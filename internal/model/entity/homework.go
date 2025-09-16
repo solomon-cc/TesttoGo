@@ -32,8 +32,8 @@ type Homework struct {
 	Subject               string               `gorm:"type:varchar(50)" json:"subject"`
 	Status                HomeworkStatus       `gorm:"type:enum('draft','active','completed','archived');default:'draft'" json:"status"`
 	ScheduleType          HomeworkScheduleType `gorm:"type:enum('weekly','daily');default:'daily'" json:"schedule_type"`
-	StartDate             time.Time            `json:"start_date"`
-	EndDate               time.Time            `json:"end_date"`
+	StartDate             *time.Time           `json:"start_date,omitempty"`
+	EndDate               *time.Time           `json:"end_date,omitempty"`
 	QuestionsPerDay       int                  `gorm:"default:10" json:"questions_per_day"`
 	ShowHints             bool                 `gorm:"default:true" json:"show_hints"`
 	ReinforcementSettings string               `gorm:"type:text" json:"reinforcement_settings"` // JSON data

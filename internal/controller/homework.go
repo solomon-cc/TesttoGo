@@ -26,14 +26,6 @@ func CreateHomework(c *gin.Context) {
 
 	// Get current user (teacher/admin)
 	userID := c.GetUint("user_id")
-	
-	// Validate dates
-	if req.EndDate.Before(req.StartDate) {
-		c.JSON(http.StatusBadRequest, response.ErrorResponse{
-			Error: "End date must be after start date",
-		})
-		return
-	}
 
 	// Start transaction
 	tx := database.DB.Begin()
@@ -55,8 +47,6 @@ func CreateHomework(c *gin.Context) {
 		Subject:               req.Subject,
 		Status:                entity.HomeworkStatusActive,
 		ScheduleType:          entity.HomeworkScheduleType(req.ScheduleType),
-		StartDate:             req.StartDate,
-		EndDate:               req.EndDate,
 		QuestionsPerDay:       req.QuestionsPerDay,
 		ShowHints:             req.ShowHints,
 		ReinforcementSettings: string(reinforcementJSON),
@@ -328,9 +318,7 @@ func UpdateHomework(c *gin.Context) {
 	if req.Status != nil {
 		updates["status"] = *req.Status
 	}
-	if req.EndDate != nil {
-		updates["end_date"] = *req.EndDate
-	}
+	// End date update removed - no longer needed
 	if req.QuestionsPerDay != nil {
 		updates["questions_per_day"] = *req.QuestionsPerDay
 	}
@@ -462,8 +450,6 @@ func CopyHomework(c *gin.Context) {
 		Subject:               sourceHomework.Subject,
 		Status:                entity.HomeworkStatusDraft,
 		ScheduleType:          sourceHomework.ScheduleType,
-		StartDate:             req.NewStartDate,
-		EndDate:               req.NewEndDate,
 		QuestionsPerDay:       sourceHomework.QuestionsPerDay,
 		ShowHints:             sourceHomework.ShowHints,
 		ReinforcementSettings: sourceHomework.ReinforcementSettings,

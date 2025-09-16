@@ -13,8 +13,8 @@ type HomeworkResponse struct {
 	Subject               string                       `json:"subject"`
 	Status                string                       `json:"status"`
 	ScheduleType          string                       `json:"schedule_type"`
-	StartDate             time.Time                    `json:"start_date"`
-	EndDate               time.Time                    `json:"end_date"`
+	StartDate             *time.Time                   `json:"start_date,omitempty"`
+	EndDate               *time.Time                   `json:"end_date,omitempty"`
 	QuestionsPerDay       int                          `json:"questions_per_day"`
 	ShowHints             bool                         `json:"show_hints"`
 	ReinforcementSettings map[string]interface{}       `json:"reinforcement_settings"`

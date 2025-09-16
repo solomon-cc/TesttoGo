@@ -9,8 +9,6 @@ type CreateHomeworkRequest struct {
 	Grade                 string                     `json:"grade" binding:"required"`
 	Subject               string                     `json:"subject" binding:"required"`
 	ScheduleType          string                     `json:"schedule_type" binding:"required,oneof=weekly daily"`
-	StartDate             time.Time                  `json:"start_date" binding:"required"`
-	EndDate               time.Time                  `json:"end_date" binding:"required"`
 	QuestionsPerDay       int                        `json:"questions_per_day" binding:"min=1,max=100"`
 	ShowHints             bool                       `json:"show_hints"`
 	ReinforcementSettings map[string]interface{}     `json:"reinforcement_settings"`
@@ -36,7 +34,6 @@ type UpdateHomeworkRequest struct {
 	Title                 *string                    `json:"title,omitempty"`
 	Description           *string                    `json:"description,omitempty"`
 	Status                *string                    `json:"status,omitempty"`
-	EndDate               *time.Time                 `json:"end_date,omitempty"`
 	QuestionsPerDay       *int                       `json:"questions_per_day,omitempty"`
 	ShowHints             *bool                      `json:"show_hints,omitempty"`
 	ReinforcementSettings *map[string]interface{}    `json:"reinforcement_settings,omitempty"`
@@ -45,8 +42,6 @@ type UpdateHomeworkRequest struct {
 // CopyHomeworkRequest represents the request to copy homework
 type CopyHomeworkRequest struct {
 	NewTitle      string    `json:"new_title" binding:"required"`
-	NewStartDate  time.Time `json:"new_start_date" binding:"required"`
-	NewEndDate    time.Time `json:"new_end_date" binding:"required"`
 	CopyStudents  bool      `json:"copy_students"`
 	CopyQuestions bool      `json:"copy_questions"`
 	StudentIDs    []uint    `json:"student_ids"`
