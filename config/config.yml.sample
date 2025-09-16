@@ -4,7 +4,7 @@ server:
 
 swagger:
   username: "admin"
-  password: "F5KDq2exI1bTvIcISdWF"
+  password: "qwe123"
 
 database:
   driver: "mysql"
