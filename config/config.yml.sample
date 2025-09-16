@@ -8,18 +8,17 @@ swagger:
 
 database:
   driver: "mysql"
-#  host: "127.0.0.1"
-  host: "47.108.75.181"
+  host: "127.0.0.1"
   port: 3306
   username: "root"
-  password: "imHere1225!"
+  password: ""
   dbname: "db_testogo"
   charset: "utf8mb4"
   maxIdleConns: 10
   maxOpenConns: 100
 
 jwt:
-  secret: "8nf656Boi0IeWn5MsDIV"
+  secret: "123456"
   expire: 72 # hours
 
 upload:
