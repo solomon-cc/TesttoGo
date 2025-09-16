@@ -8,10 +8,11 @@ swagger:
 
 database:
   driver: "mysql"
-  host: "10.37.19.94"
+#  host: "127.0.0.1"
+  host: "47.108.75.181"
   port: 3306
-  username: "db_testogo"
-  password: "1WVW2GdWgHTfXmnJiiJK"
+  username: "root"
+  password: "imHere1225!"
   dbname: "db_testogo"
   charset: "utf8mb4"
   maxIdleConns: 10

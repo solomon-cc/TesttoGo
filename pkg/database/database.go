@@ -2,6 +2,8 @@ package database
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"testogo/internal/model/entity"
@@ -9,6 +11,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -24,10 +27,22 @@ func Init() error {
 		config.GetString("database.charset"),
 	)
 
+	// 启用SQL日志记录
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold:             time.Second, // 慢 SQL 阈值
+			LogLevel:                  logger.Info, // 日志级别
+			IgnoreRecordNotFoundError: true,        // 忽略ErrRecordNotFound（记录未找到）错误
+			Colorful:                  false,       // 禁用彩色打印
+		},
+	)
+
 	db, err := gorm.Open(mysql.New(mysql.Config{
 		DSN:               dsn,
 		DefaultStringSize: 191, // MySQL 5.7 的 utf8mb4 索引长度限制
 	}), &gorm.Config{
+		Logger: newLogger, // 启用SQL日志
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // 使用单数表名
 		},

@@ -167,7 +167,10 @@ func ListQuestions(c *gin.Context) {
 
 	// 支持按科目过滤 - 优先使用ID，兼容字符串
 	if subjectID := c.Query("subject_id"); subjectID != "" {
-		query = query.Where("subject_id = ?", subjectID)
+		// 将字符串ID转换为数字
+		if subjectIDNum, err := strconv.Atoi(subjectID); err == nil && subjectIDNum > 0 {
+			query = query.Where("subject_id = ?", subjectIDNum)
+		}
 	} else if subject := c.Query("subject"); subject != "" {
 		// 兼容字符串查询 - 查找对应的科目ID
 		var subjectEntity entity.Subject
@@ -181,7 +184,10 @@ func ListQuestions(c *gin.Context) {
 
 	// 支持按主题过滤 - 优先使用ID，兼容字符串
 	if topicID := c.Query("topic_id"); topicID != "" {
-		query = query.Where("topic_id = ?", topicID)
+		// 将字符串ID转换为数字
+		if topicIDNum, err := strconv.Atoi(topicID); err == nil && topicIDNum > 0 {
+			query = query.Where("topic_id = ?", topicIDNum)
+		}
 	} else if topic := c.Query("topic"); topic != "" {
 		// 兼容字符串查询 - 查找对应的主题ID
 		var topicEntity entity.Topic
@@ -193,7 +199,7 @@ func ListQuestions(c *gin.Context) {
 		}
 	}
 
-	// 分页处理 - 支持limit参数
+	// 分页处理 - 支持limit参数和count参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
@@ -205,64 +211,107 @@ func ListQuestions(c *gin.Context) {
 		}
 	}
 
+	// 如果有count参数，使用count作为page_size（专项练习模式）
+	if countParam := c.Query("count"); countParam != "" {
+		if count, err := strconv.Atoi(countParam); err == nil && count > 0 {
+			if count > 100 {
+				count = 100 // 限制最多100道题
+			}
+			pageSize = count
+			page = 1 // count模式下默认获取第一页
+		}
+	}
+
 	// 使用相同的查询条件计算总数
 	var total int64
 	query.Model(&entity.Question{}).Count(&total)
 
-	err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&questions).Error
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目列表失败"})
-		return
-	}
+	// 检查是否为专项练习模式（有count参数）
+	isRandomMode := c.Query("count") != ""
 
-	// 构建带统计数据的响应
-	var questionsWithStats []response.QuestionWithStatsResponse
-	for _, question := range questions {
-		// 计算统计数据
-		var totalAttempts, correctCount int64
-		database.DB.Model(&entity.UserAnswer{}).Where("question_id = ?", question.ID).Count(&totalAttempts)
-		database.DB.Model(&entity.UserAnswer{}).Where("question_id = ? AND is_correct = ?", question.ID, true).Count(&correctCount)
+	var err error
 
-		// 计算正确率
-		var correctRate float64
-		if totalAttempts > 0 {
-			correctRate = float64(correctCount) / float64(totalAttempts) * 100
+	// 根据模式选择排序方式
+	if isRandomMode {
+		// 专项练习模式：使用随机排序
+		err = query.Order("id DESC").Limit(pageSize * 3).Find(&questions).Error
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目列表失败"})
+			return
 		}
 
-		questionWithStats := response.QuestionWithStatsResponse{
-			ID:          question.ID,
-			Title:       question.Title,
-			Type:        string(question.Type),
-			Difficulty:  question.Difficulty,
-			Grade:       question.Grade,
-			Subject:     question.Subject,
-			Topic:       question.Topic,
-			Options:     question.Options,
-			Answer:      question.Answer,
-			Explanation: question.Explanation,
-			CreatorID:   question.CreatorID,
-			MediaURL:    question.MediaURL,
-			MediaURLs:   question.MediaURLs,
-			LayoutType:  question.LayoutType,
-			ElementData: question.ElementData,
-			Tags:        question.Tags,
-			CreatedAt:   question.CreatedAt,
-			UpdatedAt:   question.UpdatedAt,
-			UsageCount:  totalAttempts,
-			CorrectRate: correctRate,
+		// 如果获取到的题目数量超过需要的数量，随机选择
+		if len(questions) > pageSize {
+			rand.Seed(time.Now().UnixNano())
+			for i := len(questions) - 1; i > 0; i-- {
+				j := rand.Intn(i + 1)
+				questions[i], questions[j] = questions[j], questions[i]
+			}
+			questions = questions[:pageSize]
 		}
-		questionsWithStats = append(questionsWithStats, questionWithStats)
+	} else {
+		// 普通模式：使用分页
+		err = query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&questions).Error
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目列表失败"})
+			return
+		}
 	}
 
-	// 确保items始终是数组而不是null
-	if questionsWithStats == nil {
-		questionsWithStats = []response.QuestionWithStatsResponse{}
-	}
+	// 根据模式选择响应格式
+	if isRandomMode {
+		// 专项练习模式：返回简化的题目数组（与原GetRandomQuestions保持一致）
+		c.JSON(http.StatusOK, questions)
+	} else {
+		// 普通模式：返回带统计数据的响应
+		var questionsWithStats []response.QuestionWithStatsResponse
+		for _, question := range questions {
+			// 计算统计数据
+			var totalAttempts, correctCount int64
+			database.DB.Model(&entity.UserAnswer{}).Where("question_id = ?", question.ID).Count(&totalAttempts)
+			database.DB.Model(&entity.UserAnswer{}).Where("question_id = ? AND is_correct = ?", question.ID, true).Count(&correctCount)
 
-	c.JSON(http.StatusOK, gin.H{
-		"total": total,
-		"items": questionsWithStats,
-	})
+			// 计算正确率
+			var correctRate float64
+			if totalAttempts > 0 {
+				correctRate = float64(correctCount) / float64(totalAttempts) * 100
+			}
+
+			questionWithStats := response.QuestionWithStatsResponse{
+				ID:          question.ID,
+				Title:       question.Title,
+				Type:        string(question.Type),
+				Difficulty:  question.Difficulty,
+				Grade:       question.Grade,
+				Subject:     question.Subject,
+				Topic:       question.Topic,
+				Options:     question.Options,
+				Answer:      question.Answer,
+				Explanation: question.Explanation,
+				CreatorID:   question.CreatorID,
+				MediaURL:    question.MediaURL,
+				MediaURLs:   question.MediaURLs,
+				LayoutType:  question.LayoutType,
+				ElementData: question.ElementData,
+				Tags:        question.Tags,
+				CreatedAt:   question.CreatedAt,
+				UpdatedAt:   question.UpdatedAt,
+				UsageCount:  totalAttempts,
+				CorrectRate: correctRate,
+			}
+			questionsWithStats = append(questionsWithStats, questionWithStats)
+		}
+
+		// 确保items始终是数组而不是null
+		if questionsWithStats == nil {
+			questionsWithStats = []response.QuestionWithStatsResponse{}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"total": total,
+			"items": questionsWithStats,
+		})
+	}
 }
 
 func GetQuestion(c *gin.Context) {
@@ -386,157 +435,6 @@ func AnswerQuestion(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
-}
-
-// @Summary 随机获取题目
-// @Description 根据条件随机获取题目进行练习
-// @Tags 题目
-// @Accept json
-// @Produce json
-// @Security BasicAuth
-// @Param type query string false "题目类型"
-// @Param difficulty query int false "难度等级(1-5)"
-// @Param grade query string false "年级"
-// @Param subject query string false "科目"
-// @Param topic query string false "主题"
-// @Param tags query string false "题目标签"
-// @Param count query int false "题目数量,默认1"
-// @Success 200 {array} entity.Question "题目列表"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
-// @Router /api/v1/questions/random [get]
-func GetRandomQuestions(c *gin.Context) {
-	count, _ := strconv.Atoi(c.DefaultQuery("count", "1"))
-	if count > 100 {
-		count = 100 // 限制最多100道题，支持试卷创建
-	}
-
-	// 添加调试日志
-	grade := c.Query("grade")
-	subject := c.Query("subject")
-	difficulty := c.Query("difficulty")
-	qType := c.Query("type")
-	topic := c.Query("topic")
-	tags := c.Query("tags")
-
-	println("=== GetRandomQuestions Debug ===")
-	println("Requested params - grade:", grade, "subject:", subject, "difficulty:", difficulty, "type:", qType, "topic:", topic, "tags:", tags, "count:", count)
-
-	// 首先检查数据库中是否有任何题目
-	var totalQuestionCount int64
-	database.DB.Model(&entity.Question{}).Count(&totalQuestionCount)
-	println("Total questions in database:", totalQuestionCount)
-
-	query := database.DB.Model(&entity.Question{})
-
-	// 按类型过滤
-	if qType := c.Query("type"); qType != "" {
-		query = query.Where("type = ?", qType)
-	}
-
-	// 按难度过滤
-	if difficulty := c.Query("difficulty"); difficulty != "" {
-		// 将字符串难度转换为数字
-		difficultyMap := map[string]int{
-			"easy":   1,
-			"medium": 2,
-			"hard":   3,
-		}
-		if diffNum, ok := difficultyMap[difficulty]; ok {
-			query = query.Where("difficulty = ?", diffNum)
-		} else {
-			// 如果是数字字符串，直接使用
-			query = query.Where("difficulty = ?", difficulty)
-		}
-	}
-
-	// 按年级过滤
-	if grade := c.Query("grade"); grade != "" {
-		println("Filtering by grade:", grade)
-		query = query.Where("grade = ?", grade)
-	}
-
-	// 按科目过滤 - 支持ID和代码
-	if subjectID := c.Query("subject_id"); subjectID != "" {
-		query = query.Where("subject_id = ?", subjectID)
-	} else if subject := c.Query("subject"); subject != "" {
-		// 首先尝试将subject解析为数字ID
-		if subjectIDNum, err := strconv.Atoi(subject); err == nil && subjectIDNum > 0 {
-			println("Filtering by subject_id:", subjectIDNum)
-			query = query.Where("subject_id = ?", subjectIDNum)
-		} else {
-			// 兼容字符串查询 - 查找对应的科目ID
-			var subjectEntity entity.Subject
-			if err := database.DB.Where("code = ? AND is_active = ?", subject, true).First(&subjectEntity).Error; err == nil {
-				println("Found subject by code:", subject, "-> ID:", subjectEntity.ID)
-				query = query.Where("subject_id = ?", subjectEntity.ID)
-			} else {
-				// 如果找不到科目ID，则使用旧的字符串匹配
-				println("Using legacy subject matching:", subject)
-				query = query.Where("subject = ?", subject)
-			}
-		}
-	}
-
-	// 按主题过滤 - 支持ID和代码
-	if topicID := c.Query("topic_id"); topicID != "" {
-		query = query.Where("topic_id = ?", topicID)
-	} else if topic := c.Query("topic"); topic != "" {
-		// 首先尝试将topic解析为数字ID
-		if topicIDNum, err := strconv.Atoi(topic); err == nil && topicIDNum > 0 {
-			println("Filtering by topic_id:", topicIDNum)
-			query = query.Where("topic_id = ?", topicIDNum)
-		} else {
-			// 兼容字符串查询 - 查找对应的主题ID
-			var topicEntity entity.Topic
-			if err := database.DB.Where("code = ? AND is_active = ?", topic, true).First(&topicEntity).Error; err == nil {
-				println("Found topic by code:", topic, "-> ID:", topicEntity.ID)
-				query = query.Where("topic_id = ?", topicEntity.ID)
-			} else {
-				// 如果找不到主题ID，则使用旧的字符串匹配
-				println("Using legacy topic matching:", topic)
-				query = query.Where("topic = ?", topic)
-			}
-		}
-	}
-
-	// 按标签过滤
-	if tags := c.Query("tags"); tags != "" {
-		query = query.Where("tags LIKE ?", "%"+tags+"%")
-	}
-
-	var questions []entity.Question
-
-	// 先查询总数以便调试
-	var totalCount int64
-	query.Count(&totalCount)
-	println("Found", totalCount, "questions matching criteria")
-
-	// 如果没有找到匹配的题目，不使用降级策略，直接返回空结果
-	if totalCount == 0 {
-		println("No questions found matching the criteria, returning empty result")
-		c.JSON(http.StatusOK, []entity.Question{})
-		return
-	}
-
-	// 使用更可靠的随机查询方式
-	if err := query.Order("id DESC").Limit(count * 3).Find(&questions).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取题目失败"})
-		return
-	}
-
-	// 如果获取到的题目数量不够，随机选择
-	if len(questions) > count {
-		// 简单的随机选择逻辑
-		rand.Seed(time.Now().UnixNano())
-		for i := len(questions) - 1; i > 0; i-- {
-			j := rand.Intn(i + 1)
-			questions[i], questions[j] = questions[j], questions[i]
-		}
-		questions = questions[:count]
-	}
-
-	println("Returning", len(questions), "questions")
-	c.JSON(http.StatusOK, questions)
 }
 
 // 辅助函数：检查答案是否正确

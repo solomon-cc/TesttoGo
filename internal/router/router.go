@@ -27,7 +27,6 @@ func InitRouter(r *gin.Engine) {
 		questions := protected.Group("/questions")
 		{
 			questions.GET("", controller.ListQuestions)
-			questions.GET("/random", controller.GetRandomQuestions)
 			questions.GET("/:id", controller.GetQuestion)
 			questions.GET("/:id/statistics", controller.GetQuestionStatistics)
 			questions.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreateQuestion)
