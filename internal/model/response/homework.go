@@ -18,6 +18,7 @@ type HomeworkResponse struct {
 	QuestionsPerDay       int                          `json:"questions_per_day"`
 	ShowHints             bool                         `json:"show_hints"`
 	ReinforcementSettings map[string]interface{}       `json:"reinforcement_settings"`
+	IsCompleted           bool                         `json:"is_completed"`
 	CreatedAt             time.Time                    `json:"created_at"`
 	UpdatedAt             time.Time                    `json:"updated_at"`
 	Assignments           []HomeworkAssignmentResponse `json:"assignments,omitempty"`

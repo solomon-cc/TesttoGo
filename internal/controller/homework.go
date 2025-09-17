@@ -188,7 +188,13 @@ func ListHomework(c *gin.Context) {
 	// Convert to response
 	items := make([]response.HomeworkResponse, len(homework))
 	for i, hw := range homework {
-		items[i] = convertToHomeworkResponse(&hw)
+		if userRole == "user" {
+			// For students, include completion status
+			items[i] = convertToHomeworkResponseWithCompletion(&hw, userID)
+		} else {
+			// For teachers and admins, use basic conversion
+			items[i] = convertToHomeworkResponse(&hw)
+		}
 	}
 
 	totalPages := int((total + int64(req.PageSize) - 1) / int64(req.PageSize))
@@ -259,7 +265,13 @@ func GetHomework(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, convertToHomeworkResponse(&homework))
+	if userRole == "user" {
+		// For students, include completion status
+		c.JSON(http.StatusOK, convertToHomeworkResponseWithCompletion(&homework, userID))
+	} else {
+		// For teachers and admins, use basic conversion
+		c.JSON(http.StatusOK, convertToHomeworkResponse(&homework))
+	}
 }
 
 // UpdateHomework updates an existing homework assignment
@@ -720,6 +732,7 @@ func convertToHomeworkResponse(hw *entity.Homework) response.HomeworkResponse {
 		QuestionsPerDay:       hw.QuestionsPerDay,
 		ShowHints:             hw.ShowHints,
 		ReinforcementSettings: reinforcementSettings,
+		IsCompleted:           false, // Default value, will be set by caller if needed
 		CreatedAt:             hw.CreatedAt,
 		UpdatedAt:             hw.UpdatedAt,
 	}
@@ -756,6 +769,21 @@ func convertToHomeworkResponse(hw *entity.Homework) response.HomeworkResponse {
 				CreatedAt:  question.CreatedAt,
 			}
 		}
+	}
+
+	return resp
+}
+
+// Helper function to convert entity to response with completion status for specific user
+func convertToHomeworkResponseWithCompletion(hw *entity.Homework, userID uint) response.HomeworkResponse {
+	resp := convertToHomeworkResponse(hw)
+
+	// Check if the homework is completed by the current user
+	if userID > 0 {
+		var submission entity.HomeworkSubmission
+		err := database.DB.Where("homework_id = ? AND student_id = ? AND is_completed = ?",
+			hw.ID, userID, true).First(&submission).Error
+		resp.IsCompleted = (err == nil)
 	}
 
 	return resp
