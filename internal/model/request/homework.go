@@ -80,6 +80,7 @@ type ListHomeworkRequest struct {
 	CreatorID    uint   `form:"creator_id"`
 	DateFrom     string `form:"date_from"`
 	DateTo       string `form:"date_to"`
+	AdminView    bool   `form:"admin_view"`  // 标识是否为管理员视图
 }
 
 // HomeworkSubmissionQuery represents query parameters for homework submissions

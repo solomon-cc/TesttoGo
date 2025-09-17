@@ -142,12 +142,21 @@ func ListHomework(c *gin.Context) {
 		query = query.Joins("JOIN homework_assignments ON homework_assignments.homework_id = homework.id").
 			Where("homework_assignments.student_id = ?", userID)
 	} else if userRole == "teacher" {
-		// Teachers see their own homework or all if admin
-		if req.CreatorID == 0 {
+		// Teachers see only their own homework unless AdminView is specified
+		if !req.AdminView {
 			query = query.Where("creator_id = ?", userID)
 		}
+		// If AdminView is true but user is teacher, still restrict to own homework
+		if req.AdminView {
+			query = query.Where("creator_id = ?", userID)
+		}
+	} else if userRole == "admin" {
+		// Admin can see all homework when AdminView is true, otherwise their own
+		if !req.AdminView {
+			query = query.Where("creator_id = ?", userID)
+		}
+		// If AdminView is true, show all homework (no additional filter)
 	}
-	// Admin can see all homework
 
 	// Apply filters
 	if req.Status != "" {
@@ -264,6 +273,7 @@ func GetHomework(c *gin.Context) {
 		})
 		return
 	}
+	// Admin has access to all homework
 
 	if userRole == "user" {
 		// For students, include completion status
@@ -318,6 +328,7 @@ func UpdateHomework(c *gin.Context) {
 		})
 		return
 	}
+	// Admin has access to all homework
 
 	// Update fields
 	updates := make(map[string]interface{})
@@ -394,6 +405,7 @@ func DeleteHomework(c *gin.Context) {
 		})
 		return
 	}
+	// Admin has access to all homework
 
 	// Soft delete
 	if err := database.DB.Delete(&homework).Error; err != nil {
@@ -739,6 +751,7 @@ func convertToHomeworkResponse(hw *entity.Homework) response.HomeworkResponse {
 
 	if hw.Creator.Username != "" {
 		resp.CreatorName = hw.Creator.Username
+		resp.TeacherName = hw.Creator.Username // 为了前端兼容性，同时设置 teacher_name 字段
 	}
 
 	// Convert assignments
@@ -834,6 +847,7 @@ func GetHomeworkSubmissions(c *gin.Context) {
 		})
 		return
 	}
+	// Admin has access to all homework
 
 	// Build query
 	query := database.DB.Model(&entity.HomeworkSubmission{}).
@@ -937,6 +951,7 @@ func AdjustHomework(c *gin.Context) {
 		})
 		return
 	}
+	// Admin has access to all homework
 
 	// Serialize changes
 	changesJSON, _ := json.Marshal(req.Changes)

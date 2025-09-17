@@ -9,6 +9,7 @@ type HomeworkResponse struct {
 	Description           string                       `json:"description"`
 	CreatorID             uint                         `json:"creator_id"`
 	CreatorName           string                       `json:"creator_name"`
+	TeacherName           string                       `json:"teacher_name"`  // 为前端兼容性添加
 	Grade                 string                       `json:"grade"`
 	Subject               string                       `json:"subject"`
 	Status                string                       `json:"status"`
