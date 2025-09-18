@@ -53,6 +53,10 @@ func InitRouter(r *gin.Engine) {
 			users.GET("/answers/history", controller.GetUserAnswerHistory)
 			// 用户答题表现统计
 			users.GET("/performance", controller.GetUserPerformance)
+			// 用户设置
+			users.GET("/settings", controller.GetUserSettings)
+			users.PUT("/settings", controller.UpdateUserSettings)
+			users.POST("/settings/reset", controller.ResetUserSettings)
 		}
 
 		// 用户管理路由（仅管理员）

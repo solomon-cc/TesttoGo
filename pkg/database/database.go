@@ -81,6 +81,7 @@ func Init() error {
 		&entity.ReinforcementItem{},
 		&entity.ReinforcementLog{},
 		&entity.UserPerformance{},
+		&entity.UserSettings{},
 	)
 	if err != nil {
 		return err
