@@ -25,7 +25,7 @@ func CreateHomework(c *gin.Context) {
 	}
 
 	// Get current user (teacher/admin)
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Start transaction
 	tx := database.DB.Begin()
@@ -130,7 +130,7 @@ func ListHomework(c *gin.Context) {
 	}
 
 	// Get current user info
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Build query
@@ -249,7 +249,7 @@ func GetHomework(c *gin.Context) {
 	}
 
 	// Check access permissions
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 	
 	if userRole == "user" {
@@ -303,7 +303,7 @@ func UpdateHomework(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Find homework
@@ -380,7 +380,7 @@ func DeleteHomework(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Find homework
@@ -439,7 +439,7 @@ func CopyHomework(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Find source homework
 	var sourceHomework entity.Homework
@@ -569,7 +569,7 @@ func SubmitHomework(c *gin.Context) {
 	}
 
 	// Get current user (student)
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Verify homework exists and student is assigned
 	var homework entity.Homework
@@ -829,7 +829,7 @@ func GetHomeworkSubmissions(c *gin.Context) {
 	}
 
 	// Verify homework exists and user has access
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 	
 	var homework entity.Homework
@@ -932,7 +932,7 @@ func AdjustHomework(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Verify homework exists and user has access
@@ -983,7 +983,7 @@ func AdjustHomework(c *gin.Context) {
 // GetHomeworkHistory retrieves homework history for copying
 func GetHomeworkHistory(c *gin.Context) {
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Build query

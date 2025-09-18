@@ -25,7 +25,7 @@ func CreateReinforcementSetting(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Start transaction
 	tx := database.DB.Begin()
@@ -111,7 +111,7 @@ func ListReinforcementSettings(c *gin.Context) {
 	}
 
 	// Get current user info
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Build query
@@ -198,7 +198,7 @@ func GetReinforcementSetting(c *gin.Context) {
 	}
 
 	// Check access permissions
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	if userRole == "teacher" && setting.CreatorID != userID {
@@ -230,7 +230,7 @@ func UpdateReinforcementSetting(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Find setting
@@ -353,7 +353,7 @@ func DeleteReinforcementSetting(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 	userRole := c.GetString("user_role")
 
 	// Find setting
@@ -403,7 +403,7 @@ func CopyReinforcementSetting(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Find source setting
 	var sourceSetting entity.ReinforcementSetting
@@ -717,7 +717,7 @@ func RecordReinforcementTrigger(c *gin.Context) {
 	}
 
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Serialize context data
 	contextJSON, _ := json.Marshal(req.ContextData)

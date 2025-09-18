@@ -294,7 +294,7 @@ func DeleteUser(c *gin.Context) {
 // GetUserPerformance retrieves user's learning performance statistics
 func GetUserPerformance(c *gin.Context) {
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Calculate total statistics from user answers
 	var totalQuestions int64
@@ -449,7 +449,7 @@ func GetUserPerformance(c *gin.Context) {
 // GetUserAnswerHistory retrieves user's answer history
 func GetUserAnswerHistory(c *gin.Context) {
 	// Get current user
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("userID")
 
 	// Get pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
