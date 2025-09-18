@@ -487,15 +487,31 @@ func CreateReinforcementItem(c *gin.Context) {
 		return
 	}
 
+	// Convert tags array to JSON string
+	tagsJSON := ""
+	if len(req.Tags) > 0 {
+		if tagsBytes, err := json.Marshal(req.Tags); err == nil {
+			tagsJSON = string(tagsBytes)
+		}
+	}
+
 	// Create reinforcement item
 	item := entity.ReinforcementItem{
 		Name:          req.Name,
 		Type:          entity.ReinforcementItemType(req.Type),
-		MediaURL:      req.MediaURL,
+		Description:   req.Description,
+		ContentURL:    req.ContentURL,
+		PreviewURL:    req.PreviewURL,
+		MediaURL:      req.MediaURL, // For backward compatibility
 		Color:         req.Color,
 		Icon:          req.Icon,
 		Duration:      req.Duration,
 		AnimationType: req.AnimationType,
+		GameType:      req.GameType,
+		Difficulty:    req.Difficulty,
+		RewardPoints:  req.RewardPoints,
+		Volume:        req.Volume,
+		Tags:          tagsJSON,
 		IsActive:      true,
 	}
 
@@ -639,6 +655,15 @@ func UpdateReinforcementItem(c *gin.Context) {
 	if req.Type != nil {
 		updates["type"] = *req.Type
 	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.ContentURL != nil {
+		updates["content_url"] = *req.ContentURL
+	}
+	if req.PreviewURL != nil {
+		updates["preview_url"] = *req.PreviewURL
+	}
 	if req.MediaURL != nil {
 		updates["media_url"] = *req.MediaURL
 	}
@@ -653,6 +678,23 @@ func UpdateReinforcementItem(c *gin.Context) {
 	}
 	if req.AnimationType != nil {
 		updates["animation_type"] = *req.AnimationType
+	}
+	if req.GameType != nil {
+		updates["game_type"] = *req.GameType
+	}
+	if req.Difficulty != nil {
+		updates["difficulty"] = *req.Difficulty
+	}
+	if req.RewardPoints != nil {
+		updates["reward_points"] = *req.RewardPoints
+	}
+	if req.Volume != nil {
+		updates["volume"] = *req.Volume
+	}
+	if len(req.Tags) > 0 {
+		if tagsBytes, err := json.Marshal(req.Tags); err == nil {
+			updates["tags"] = string(tagsBytes)
+		}
 	}
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
@@ -838,11 +880,19 @@ func convertToReinforcementItemResponse(item *entity.ReinforcementItem) response
 		ID:            item.ID,
 		Name:          item.Name,
 		Type:          string(item.Type),
-		MediaURL:      item.MediaURL,
+		Description:   item.Description,
+		ContentURL:    item.ContentURL,
+		PreviewURL:    item.PreviewURL,
+		MediaURL:      item.MediaURL, // For backward compatibility
 		Color:         item.Color,
 		Icon:          item.Icon,
 		Duration:      item.Duration,
 		AnimationType: item.AnimationType,
+		GameType:      item.GameType,
+		Difficulty:    item.Difficulty,
+		RewardPoints:  item.RewardPoints,
+		Volume:        item.Volume,
+		Tags:          item.Tags,
 		IsActive:      item.IsActive,
 		CreatedAt:     item.CreatedAt,
 		UpdatedAt:     item.UpdatedAt,
@@ -942,6 +992,155 @@ func DeleteRewardVideo(c *gin.Context) {
 	
 	c.JSON(http.StatusOK, response.SuccessResponse{
 		Message: "Video deleted successfully",
+	})
+}
+
+// BatchDeleteReinforcementItems deletes multiple reinforcement items
+func BatchDeleteReinforcementItems(c *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			Error: "Invalid request data: " + err.Error(),
+		})
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			Error: "No IDs provided for deletion",
+		})
+		return
+	}
+
+	// Soft delete multiple items
+	if err := database.DB.Where("id IN ?", req.IDs).Delete(&entity.ReinforcementItem{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+			Error: "Failed to delete reinforcement items",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse{
+		Message: "Reinforcement items deleted successfully",
+		Data: map[string]interface{}{
+			"deleted_count": len(req.IDs),
+		},
+	})
+}
+
+// BatchUpdateReinforcementItems updates multiple reinforcement items
+func BatchUpdateReinforcementItems(c *gin.Context) {
+	var req struct {
+		Items []struct {
+			ID       uint                    `json:"id" binding:"required"`
+			IsActive *bool                   `json:"is_active,omitempty"`
+			Name     *string                 `json:"name,omitempty"`
+		} `json:"items" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			Error: "Invalid request data: " + err.Error(),
+		})
+		return
+	}
+
+	if len(req.Items) == 0 {
+		c.JSON(http.StatusBadRequest, response.ErrorResponse{
+			Error: "No items provided for update",
+		})
+		return
+	}
+
+	// Start transaction
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	updatedCount := 0
+	for _, item := range req.Items {
+		updates := make(map[string]interface{})
+		if item.IsActive != nil {
+			updates["is_active"] = *item.IsActive
+		}
+		if item.Name != nil {
+			updates["name"] = *item.Name
+		}
+
+		if len(updates) > 0 {
+			if err := tx.Model(&entity.ReinforcementItem{}).Where("id = ?", item.ID).Updates(updates).Error; err != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+					Error: "Failed to update reinforcement item with ID: " + strconv.Itoa(int(item.ID)),
+				})
+				return
+			}
+			updatedCount++
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
+			Error: "Failed to save updates",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse{
+		Message: "Reinforcement items updated successfully",
+		Data: map[string]interface{}{
+			"updated_count": updatedCount,
+		},
+	})
+}
+
+// GetReinforcementItemTypes returns available reinforcement item types
+func GetReinforcementItemTypes(c *gin.Context) {
+	types := []map[string]interface{}{
+		{
+			"value":       "video",
+			"label":       "视频强化物",
+			"description": "播放视频作为奖励",
+			"icon":        "🎬",
+		},
+		{
+			"value":       "game",
+			"label":       "游戏强化物",
+			"description": "互动小游戏作为奖励",
+			"icon":        "🎮",
+		},
+		{
+			"value":       "virtual",
+			"label":       "虚拟奖励",
+			"description": "虚拟徽章、星星等奖励",
+			"icon":        "⭐",
+		},
+		{
+			"value":       "animation",
+			"label":       "动画效果",
+			"description": "动画特效作为奖励",
+			"icon":        "🎆",
+		},
+		{
+			"value":       "sound",
+			"label":       "音效",
+			"description": "音频效果作为奖励",
+			"icon":        "🔊",
+		},
+	}
+
+	c.JSON(http.StatusOK, response.SuccessResponse{
+		Message: "Reinforcement item types retrieved successfully",
+		Data: map[string]interface{}{
+			"types": types,
+		},
 	})
 }
 

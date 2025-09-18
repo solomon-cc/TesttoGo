@@ -89,19 +89,41 @@ func InitRouter(r *gin.Engine) {
 			homework.GET("/history", middleware.RoleMiddleware("teacher", "admin"), controller.GetHomeworkHistory)
 		}
 
-		// 强化学习相关路由
+		// 强化物管理相关路由
+		reinforcementItems := protected.Group("/reinforcement-items")
+		{
+			reinforcementItems.GET("", controller.ListReinforcementItems)
+			reinforcementItems.GET("/:id", controller.GetReinforcementItem)
+			reinforcementItems.POST("", middleware.RoleMiddleware("admin"), controller.CreateReinforcementItem)
+			reinforcementItems.PUT("/:id", middleware.RoleMiddleware("admin"), controller.UpdateReinforcementItem)
+			reinforcementItems.DELETE("/:id", middleware.RoleMiddleware("admin"), controller.DeleteReinforcementItem)
+
+			// 文件上传接口
+			reinforcementItems.POST("/upload/image", middleware.RoleMiddleware("admin"), controller.UploadRewardVideo)
+			reinforcementItems.POST("/upload/video", middleware.RoleMiddleware("admin"), controller.UploadRewardVideo)
+			reinforcementItems.POST("/upload/audio", middleware.RoleMiddleware("admin"), controller.UploadRewardVideo)
+
+			// 批量操作
+			reinforcementItems.DELETE("/batch", middleware.RoleMiddleware("admin"), controller.BatchDeleteReinforcementItems)
+			reinforcementItems.PUT("/batch", middleware.RoleMiddleware("admin"), controller.BatchUpdateReinforcementItems)
+
+			// 强化物类型
+			reinforcementItems.GET("/types", controller.GetReinforcementItemTypes)
+		}
+
+		// 强化奖励管理相关路由（保持原有的 /reinforcements 用于奖励策略管理）
 		reinforcement := protected.Group("/reinforcements")
 		{
-			// 强化物管理
+			// 虚拟奖励、动画、视频等的管理（兼容现有前端）
 			reinforcement.GET("", controller.ListReinforcementItems)
 			reinforcement.GET("/:id", controller.GetReinforcementItem)
-			reinforcement.POST("", middleware.RoleMiddleware("teacher", "admin"), controller.CreateReinforcementItem)
-			reinforcement.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdateReinforcementItem)
+			reinforcement.POST("", middleware.RoleMiddleware("admin"), controller.CreateReinforcementItem)
+			reinforcement.PUT("/:id", middleware.RoleMiddleware("admin"), controller.UpdateReinforcementItem)
 			reinforcement.DELETE("/:id", middleware.RoleMiddleware("admin"), controller.DeleteReinforcementItem)
-			
+
 			// 强化物视频上传
-			reinforcement.POST("/videos", middleware.RoleMiddleware("teacher", "admin"), controller.UploadRewardVideo)
-			reinforcement.DELETE("/videos/:id", middleware.RoleMiddleware("teacher", "admin"), controller.DeleteRewardVideo)
+			reinforcement.POST("/videos", middleware.RoleMiddleware("admin"), controller.UploadRewardVideo)
+			reinforcement.DELETE("/videos/:id", middleware.RoleMiddleware("admin"), controller.DeleteRewardVideo)
 		}
 
 		// 强化设置相关路由

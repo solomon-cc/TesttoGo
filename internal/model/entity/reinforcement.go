@@ -22,10 +22,16 @@ const (
 	ScheduleFI ReinforcementScheduleType = "FI" // Fixed Interval
 
 	// Reinforcement item types
+	ItemTypeVideo      ReinforcementItemType = "video"
+	ItemTypeGame       ReinforcementItemType = "game"
+	ItemTypeVirtual    ReinforcementItemType = "virtual"
+	ItemTypeAnimation  ReinforcementItemType = "animation"
+	ItemTypeSound      ReinforcementItemType = "sound"
+
+	// Legacy types (for backward compatibility)
 	ItemTypeFlower     ReinforcementItemType = "flower"
 	ItemTypeStar       ReinforcementItemType = "star"
 	ItemTypeBadge      ReinforcementItemType = "badge"
-	ItemTypeVideo      ReinforcementItemType = "video"
 	ItemTypeFireworks  ReinforcementItemType = "fireworks"
 )
 
@@ -53,18 +59,26 @@ type ReinforcementSetting struct {
 
 // ReinforcementItem represents a reward item
 type ReinforcementItem struct {
-	ID          uint                  `gorm:"primarykey" json:"id"`
-	Name        string                `gorm:"type:varchar(100)" json:"name"`
-	Type        ReinforcementItemType `gorm:"type:enum('flower','star','badge','video','fireworks')" json:"type"`
-	MediaURL    string                `gorm:"type:varchar(500)" json:"media_url"` // For videos, images
-	Color       string                `gorm:"type:varchar(7)" json:"color"`       // Hex color code
-	Icon        string                `gorm:"type:varchar(100)" json:"icon"`      // Icon class or name
-	Duration    int                   `gorm:"default:3000" json:"duration"`      // Display duration in ms
-	AnimationType string              `gorm:"type:varchar(50)" json:"animation_type"` // Animation style
-	IsActive    bool                  `gorm:"default:true" json:"is_active"`
-	CreatedAt   time.Time             `json:"created_at"`
-	UpdatedAt   time.Time             `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt        `gorm:"index" json:"-"`
+	ID            uint                  `gorm:"primarykey" json:"id"`
+	Name          string                `gorm:"type:varchar(100)" json:"name"`
+	Type          ReinforcementItemType `gorm:"type:varchar(20)" json:"type"` // Changed to varchar to support all types
+	Description   string                `gorm:"type:text" json:"description"`
+	ContentURL    string                `gorm:"type:varchar(500)" json:"content_url"` // For videos, audio files
+	PreviewURL    string                `gorm:"type:varchar(500)" json:"preview_url"` // For thumbnails, icons
+	MediaURL      string                `gorm:"type:varchar(500)" json:"media_url"`   // Legacy field, kept for compatibility
+	Color         string                `gorm:"type:varchar(7)" json:"color"`         // Hex color code
+	Icon          string                `gorm:"type:varchar(100)" json:"icon"`        // Icon class or name
+	Duration      int                   `gorm:"default:3000" json:"duration"`        // Display duration in ms or seconds
+	AnimationType string                `gorm:"type:varchar(50)" json:"animation_type"` // Animation style
+	GameType      string                `gorm:"type:varchar(50)" json:"game_type"`      // For games: puzzle, memory, etc.
+	Difficulty    string                `gorm:"type:varchar(20)" json:"difficulty"`     // For games: easy, medium, hard
+	RewardPoints  int                   `gorm:"default:0" json:"reward_points"`         // For virtual rewards
+	Volume        int                   `gorm:"default:80" json:"volume"`               // For sound effects (0-100)
+	Tags          string                `gorm:"type:text" json:"tags"`                  // JSON array of tags
+	IsActive      bool                  `gorm:"default:true" json:"is_active"`
+	CreatedAt     time.Time             `json:"created_at"`
+	UpdatedAt     time.Time             `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt        `gorm:"index" json:"-"`
 
 	// Relations
 	ReinforcementSettings []ReinforcementSetting `gorm:"many2many:reinforcement_setting_items;" json:"settings,omitempty"`

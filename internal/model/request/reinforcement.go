@@ -25,25 +25,41 @@ type UpdateReinforcementSettingRequest struct {
 
 // CreateReinforcementItemRequest represents the request to create a reinforcement item
 type CreateReinforcementItemRequest struct {
-	Name          string `json:"name" binding:"required,min=1,max=100"`
-	Type          string `json:"type" binding:"required,oneof=flower star badge video fireworks"`
-	MediaURL      string `json:"media_url"`
-	Color         string `json:"color"`
-	Icon          string `json:"icon"`
-	Duration      int    `json:"duration" binding:"min=500,max=30000"`
-	AnimationType string `json:"animation_type"`
+	Name          string   `json:"name" binding:"required,min=1,max=100"`
+	Type          string   `json:"type" binding:"required,oneof=video game virtual animation sound flower star badge fireworks"`
+	Description   string   `json:"description"`
+	ContentURL    string   `json:"content_url"`
+	PreviewURL    string   `json:"preview_url"`
+	MediaURL      string   `json:"media_url"` // For backward compatibility
+	Color         string   `json:"color"`
+	Icon          string   `json:"icon"`
+	Duration      int      `json:"duration" binding:"min=0,max=600"` // Extended range for videos
+	AnimationType string   `json:"animation_type"`
+	GameType      string   `json:"game_type"`
+	Difficulty    string   `json:"difficulty" binding:"omitempty,oneof=easy medium hard"`
+	RewardPoints  int      `json:"reward_points" binding:"min=0,max=1000"`
+	Volume        int      `json:"volume" binding:"min=0,max=100"`
+	Tags          []string `json:"tags"`
 }
 
 // UpdateReinforcementItemRequest represents the request to update a reinforcement item
 type UpdateReinforcementItemRequest struct {
-	Name          *string `json:"name,omitempty"`
-	Type          *string `json:"type,omitempty"`
-	MediaURL      *string `json:"media_url,omitempty"`
-	Color         *string `json:"color,omitempty"`
-	Icon          *string `json:"icon,omitempty"`
-	Duration      *int    `json:"duration,omitempty"`
-	AnimationType *string `json:"animation_type,omitempty"`
-	IsActive      *bool   `json:"is_active,omitempty"`
+	Name          *string   `json:"name,omitempty"`
+	Type          *string   `json:"type,omitempty"`
+	Description   *string   `json:"description,omitempty"`
+	ContentURL    *string   `json:"content_url,omitempty"`
+	PreviewURL    *string   `json:"preview_url,omitempty"`
+	MediaURL      *string   `json:"media_url,omitempty"`
+	Color         *string   `json:"color,omitempty"`
+	Icon          *string   `json:"icon,omitempty"`
+	Duration      *int      `json:"duration,omitempty"`
+	AnimationType *string   `json:"animation_type,omitempty"`
+	GameType      *string   `json:"game_type,omitempty"`
+	Difficulty    *string   `json:"difficulty,omitempty"`
+	RewardPoints  *int      `json:"reward_points,omitempty"`
+	Volume        *int      `json:"volume,omitempty"`
+	Tags          []string  `json:"tags,omitempty"`
+	IsActive      *bool     `json:"is_active,omitempty"`
 }
 
 // RecordReinforcementTriggerRequest represents logging a reinforcement trigger

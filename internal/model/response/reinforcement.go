@@ -24,11 +24,19 @@ type ReinforcementItemResponse struct {
 	ID            uint      `json:"id"`
 	Name          string    `json:"name"`
 	Type          string    `json:"type"`
-	MediaURL      string    `json:"media_url"`
+	Description   string    `json:"description"`
+	ContentURL    string    `json:"content_url"`
+	PreviewURL    string    `json:"preview_url"`
+	MediaURL      string    `json:"media_url"` // For backward compatibility
 	Color         string    `json:"color"`
 	Icon          string    `json:"icon"`
 	Duration      int       `json:"duration"`
 	AnimationType string    `json:"animation_type"`
+	GameType      string    `json:"game_type"`
+	Difficulty    string    `json:"difficulty"`
+	RewardPoints  int       `json:"reward_points"`
+	Volume        int       `json:"volume"`
+	Tags          string    `json:"tags"` // JSON string of tags array
 	IsActive      bool      `json:"is_active"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
