@@ -1,17 +1,17 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
 	"testogo/internal/model/entity"
-	"testogo/internal/model/response"
 	"testogo/pkg/database"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 // @Summary 获取用户列表
@@ -447,115 +447,274 @@ func GetUserPerformance(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// GetUserAnswerHistory retrieves user's answer history
+// GetUserAnswerHistory retrieves user's answer history grouped by sessions
 func GetUserAnswerHistory(c *gin.Context) {
-	// Get current user
-	userID := c.GetUint("userID")
+	// Get current user info
+	currentUserID := c.GetUint("userID")
+	userRole, _ := c.Get("userRole")
 
 	// Get pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	answerType := c.Query("answer_type") // single or paper
+	targetUserID := c.Query("user_id")   // 可选：指定查看特定用户的历史（仅老师/管理员）
 
-	// Build query
-	query := database.DB.Model(&entity.UserAnswer{}).
-		Where("user_id = ?", userID).
-		Preload("Question", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, title, type, difficulty, grade, subject, topic, options, answer, explanation, creator_id, media_urls, layout_type, element_data, tags, created_at, updated_at")
-		}).
-		Preload("Question.Creator", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, username, role, created_at, updated_at").Where("id > 0")
-		}).
-		Preload("User", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, username, role, created_at, updated_at")
-		})
-
-	if answerType != "" {
-		query = query.Where("answer_type = ?", answerType)
-	}
-
-	// Count total
-	var total int64
-	query.Count(&total)
-
-	// Get answers with pagination
-	var answers []entity.UserAnswer
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).
-		Order("created_at DESC").
-		Find(&answers).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, response.ErrorResponse{
-			Error: "Failed to fetch answer history",
-		})
-		return
-	}
-
-	// Convert to response format
-	items := make([]map[string]interface{}, len(answers))
-	for i, answer := range answers {
-		// Get student name from User relationship
-		studentName := ""
-		if answer.User.ID > 0 {
-			studentName = answer.User.Username
-		}
-
-		// Get creator information from Question.Creator relationship
-		var creator map[string]interface{}
-		if answer.Question.Creator.ID > 0 {
-			creator = map[string]interface{}{
-				"id":         answer.Question.Creator.ID,
-				"username":   answer.Question.Creator.Username,
-				"role":       answer.Question.Creator.Role,
-				"created_at": answer.Question.Creator.CreatedAt,
-				"updated_at": answer.Question.Creator.UpdatedAt,
+	// 确定要查询的用户ID
+	var queryUserID uint
+	if userRole == "teacher" || userRole == "admin" {
+		// 老师和管理员可以查看所有用户的历史
+		if targetUserID != "" {
+			// 如果指定了user_id参数，查看指定用户的历史
+			if uid, err := strconv.ParseUint(targetUserID, 10, 32); err == nil {
+				queryUserID = uint(uid)
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+				return
 			}
+		} else {
+			// 如果没有指定user_id，查看所有用户的历史（设置为0表示查看所有）
+			queryUserID = 0
 		}
-
-		// Include creator in question data
-		questionData := answer.Question
-		questionMap := map[string]interface{}{
-			"id":             questionData.ID,
-			"title":          questionData.Title,
-			"type":           questionData.Type,
-			"difficulty":     questionData.Difficulty,
-			"grade":          questionData.Grade,
-			"subject":        questionData.Subject,
-			"topic":          questionData.Topic,
-			"options":        questionData.Options,
-			"answer":         questionData.Answer,
-			"explanation":    questionData.Explanation,
-			"creator_id":     questionData.CreatorID,
-			"creator":        creator,
-			"media_urls":     questionData.MediaURLs,
-			"layout_type":    questionData.LayoutType,
-			"element_data":   questionData.ElementData,
-			"tags":           questionData.Tags,
-			"created_at":     questionData.CreatedAt,
-			"updated_at":     questionData.UpdatedAt,
-		}
-
-		items[i] = map[string]interface{}{
-			"id":           answer.ID,
-			"question_id":  answer.QuestionID,
-			"question":     questionMap,
-			"paper_id":     answer.PaperID,
-			"answer":       answer.Answer,
-			"is_correct":   answer.IsCorrect,
-			"answer_type":  answer.AnswerType,
-			"student_name": studentName,
-			"created_at":   answer.CreatedAt,
-		}
+	} else {
+		// 学生只能查看自己的历史
+		queryUserID = currentUserID
 	}
 
-	totalPages := int((total + int64(pageSize) - 1) / int64(pageSize))
+	// For paper-based answers, group by paper_id
+	// For single answers, group by time windows (same day or within 1 hour)
+	var sessions []map[string]interface{}
+
+	if answerType == "paper" || answerType == "" {
+		// Get paper-based sessions
+		paperSessions := getPaperSessions(queryUserID)
+		sessions = append(sessions, paperSessions...)
+	}
+
+	if answerType == "single" || answerType == "" {
+		// Get single answer sessions (grouped by time)
+		singleSessions := getSingleAnswerSessions(queryUserID)
+		sessions = append(sessions, singleSessions...)
+	}
+
+	// Sort sessions by created_at DESC
+	sort.Slice(sessions, func(i, j int) bool {
+		timeI, _ := time.Parse(time.RFC3339, sessions[i]["created_at"].(string))
+		timeJ, _ := time.Parse(time.RFC3339, sessions[j]["created_at"].(string))
+		return timeI.After(timeJ)
+	})
+
+	// Apply pagination
+	total := len(sessions)
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start >= total {
+		sessions = []map[string]interface{}{}
+	} else {
+		if end > total {
+			end = total
+		}
+		sessions = sessions[start:end]
+	}
+
+	totalPages := (total + pageSize - 1) / pageSize
 
 	c.JSON(http.StatusOK, gin.H{
-		"items":       items,
+		"items":       sessions,
 		"total":       total,
 		"page":        page,
 		"page_size":   pageSize,
 		"total_pages": totalPages,
 	})
+}
+
+// getPaperSessions gets sessions based on paper submissions
+func getPaperSessions(userID uint) []map[string]interface{} {
+	var results []map[string]interface{}
+
+	// Build query based on userID (0 means all users)
+	var query string
+	var args []interface{}
+
+	if userID == 0 {
+		// Query all users
+		query = `
+			SELECT
+				ua.user_id,
+				ua.paper_id,
+				COUNT(*) as question_count,
+				SUM(CASE WHEN ua.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+				MAX(ua.created_at) as created_at,
+				'paper' as answer_type,
+				u.username as student_name
+			FROM user_answers ua
+			JOIN users u ON ua.user_id = u.id
+			WHERE ua.paper_id > 0 AND ua.deleted_at IS NULL
+			GROUP BY ua.user_id, ua.paper_id
+			ORDER BY MAX(ua.created_at) DESC
+		`
+		args = []interface{}{}
+	} else {
+		// Query specific user
+		query = `
+			SELECT
+				ua.user_id,
+				ua.paper_id,
+				COUNT(*) as question_count,
+				SUM(CASE WHEN ua.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+				MAX(ua.created_at) as created_at,
+				'paper' as answer_type,
+				u.username as student_name
+			FROM user_answers ua
+			JOIN users u ON ua.user_id = u.id
+			WHERE ua.user_id = ? AND ua.paper_id > 0 AND ua.deleted_at IS NULL
+			GROUP BY ua.user_id, ua.paper_id
+			ORDER BY MAX(ua.created_at) DESC
+		`
+		args = []interface{}{userID}
+	}
+
+	rows, err := database.DB.Raw(query, args...).Rows()
+
+	if err != nil {
+		return results
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userIDResult, paperID, questionCount, correctCount int
+		var createdAt time.Time
+		var answerType, studentName string
+
+		rows.Scan(&userIDResult, &paperID, &questionCount, &correctCount, &createdAt, &answerType, &studentName)
+
+		accuracyRate := 0
+		if questionCount > 0 {
+			accuracyRate = (correctCount * 100) / questionCount
+		}
+
+		var sessionID string
+		var title string
+		if userID == 0 {
+			// For all users view, include user info in ID and title
+			sessionID = fmt.Sprintf("paper_%d_user_%d", paperID, userIDResult)
+			title = fmt.Sprintf("%s - 试卷练习 #%d", studentName, paperID)
+		} else {
+			// For single user view, simpler format
+			sessionID = fmt.Sprintf("paper_%d", paperID)
+			title = fmt.Sprintf("试卷练习 #%d", paperID)
+		}
+
+		results = append(results, map[string]interface{}{
+			"id":            sessionID,
+			"user_id":       userIDResult,
+			"paper_id":      paperID,
+			"title":         title,
+			"question_count": questionCount,
+			"correct_count":  correctCount,
+			"accuracy_rate":  accuracyRate,
+			"answer_type":    answerType,
+			"created_at":     createdAt.Format(time.RFC3339),
+			"student_name":   studentName,
+		})
+	}
+
+	return results
+}
+
+// getSingleAnswerSessions gets sessions for single practice answers grouped by time windows
+func getSingleAnswerSessions(userID uint) []map[string]interface{} {
+	var results []map[string]interface{}
+
+	// Build query based on userID (0 means all users)
+	var query string
+	var args []interface{}
+
+	if userID == 0 {
+		// Query all users, group by user and date
+		query = `
+			SELECT
+				ua.user_id,
+				DATE(ua.created_at) as practice_date,
+				COUNT(*) as question_count,
+				SUM(CASE WHEN ua.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+				MAX(ua.created_at) as created_at,
+				'single' as answer_type,
+				u.username as student_name
+			FROM user_answers ua
+			JOIN users u ON ua.user_id = u.id
+			WHERE (ua.paper_id = 0 OR ua.paper_id IS NULL) AND ua.deleted_at IS NULL
+			GROUP BY ua.user_id, DATE(ua.created_at)
+			ORDER BY practice_date DESC
+		`
+		args = []interface{}{}
+	} else {
+		// Query specific user
+		query = `
+			SELECT
+				ua.user_id,
+				DATE(ua.created_at) as practice_date,
+				COUNT(*) as question_count,
+				SUM(CASE WHEN ua.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+				MAX(ua.created_at) as created_at,
+				'single' as answer_type,
+				u.username as student_name
+			FROM user_answers ua
+			JOIN users u ON ua.user_id = u.id
+			WHERE ua.user_id = ? AND (ua.paper_id = 0 OR ua.paper_id IS NULL) AND ua.deleted_at IS NULL
+			GROUP BY ua.user_id, DATE(ua.created_at)
+			ORDER BY practice_date DESC
+		`
+		args = []interface{}{userID}
+	}
+
+	rows, err := database.DB.Raw(query, args...).Rows()
+
+	if err != nil {
+		return results
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userIDResult int
+		var practiceDate string
+		var questionCount, correctCount int
+		var createdAt time.Time
+		var answerType, studentName string
+
+		rows.Scan(&userIDResult, &practiceDate, &questionCount, &correctCount, &createdAt, &answerType, &studentName)
+
+		accuracyRate := 0
+		if questionCount > 0 {
+			accuracyRate = (correctCount * 100) / questionCount
+		}
+
+		var sessionID string
+		var title string
+		if userID == 0 {
+			// For all users view, include user info in ID and title
+			sessionID = fmt.Sprintf("single_%s_user_%d", practiceDate, userIDResult)
+			title = fmt.Sprintf("%s - 随机练习 %s", studentName, practiceDate)
+		} else {
+			// For single user view, simpler format
+			sessionID = fmt.Sprintf("single_%s", practiceDate)
+			title = fmt.Sprintf("随机练习 - %s", practiceDate)
+		}
+
+		results = append(results, map[string]interface{}{
+			"id":            sessionID,
+			"user_id":       userIDResult,
+			"practice_date": practiceDate,
+			"title":         title,
+			"question_count": questionCount,
+			"correct_count":  correctCount,
+			"accuracy_rate":  accuracyRate,
+			"answer_type":    answerType,
+			"created_at":     createdAt.Format(time.RFC3339),
+			"student_name":   studentName,
+		})
+	}
+
+	return results
 }
 
 // Helper function to calculate streak days
