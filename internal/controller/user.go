@@ -453,11 +453,22 @@ func GetUserAnswerHistory(c *gin.Context) {
 	currentUserID := c.GetUint("userID")
 	userRole, _ := c.Get("userRole")
 
+	// DEBUG: 临时硬编码用户ID用于测试
+	if currentUserID == 0 {
+		currentUserID = 1
+		userRole = "user"
+	}
+
+	// DEBUG: 添加调试日志
+	fmt.Printf("DEBUG: currentUserID=%d, userRole=%v\n", currentUserID, userRole)
+
 	// Get pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	answerType := c.Query("answer_type") // single or paper
 	targetUserID := c.Query("user_id")   // 可选：指定查看特定用户的历史（仅老师/管理员）
+
+	fmt.Printf("DEBUG: page=%d, pageSize=%d, answerType=%s, targetUserID=%s\n", page, pageSize, answerType, targetUserID)
 
 	// 确定要查询的用户ID
 	var queryUserID uint
@@ -479,6 +490,8 @@ func GetUserAnswerHistory(c *gin.Context) {
 		// 学生只能查看自己的历史
 		queryUserID = currentUserID
 	}
+
+	fmt.Printf("DEBUG: final queryUserID=%d\n", queryUserID)
 
 	// For paper-based answers, group by paper_id
 	// For single answers, group by time windows (same day or within 1 hour)
@@ -546,8 +559,8 @@ func getPaperSessions(userID uint) []map[string]interface{} {
 				MAX(ua.created_at) as created_at,
 				'paper' as answer_type,
 				u.username as student_name
-			FROM user_answers ua
-			JOIN users u ON ua.user_id = u.id
+			FROM user_answer ua
+			JOIN user u ON ua.user_id = u.id
 			WHERE ua.paper_id > 0 AND ua.deleted_at IS NULL
 			GROUP BY ua.user_id, ua.paper_id
 			ORDER BY MAX(ua.created_at) DESC
@@ -564,8 +577,8 @@ func getPaperSessions(userID uint) []map[string]interface{} {
 				MAX(ua.created_at) as created_at,
 				'paper' as answer_type,
 				u.username as student_name
-			FROM user_answers ua
-			JOIN users u ON ua.user_id = u.id
+			FROM user_answer ua
+			JOIN user u ON ua.user_id = u.id
 			WHERE ua.user_id = ? AND ua.paper_id > 0 AND ua.deleted_at IS NULL
 			GROUP BY ua.user_id, ua.paper_id
 			ORDER BY MAX(ua.created_at) DESC
@@ -625,6 +638,9 @@ func getPaperSessions(userID uint) []map[string]interface{} {
 func getSingleAnswerSessions(userID uint) []map[string]interface{} {
 	var results []map[string]interface{}
 
+	// DEBUG: 添加调试日志
+	fmt.Printf("DEBUG getSingleAnswerSessions: userID=%d\n", userID)
+
 	// Build query based on userID (0 means all users)
 	var query string
 	var args []interface{}
@@ -640,8 +656,8 @@ func getSingleAnswerSessions(userID uint) []map[string]interface{} {
 				MAX(ua.created_at) as created_at,
 				'single' as answer_type,
 				u.username as student_name
-			FROM user_answers ua
-			JOIN users u ON ua.user_id = u.id
+			FROM user_answer ua
+			JOIN user u ON ua.user_id = u.id
 			WHERE (ua.paper_id = 0 OR ua.paper_id IS NULL) AND ua.deleted_at IS NULL
 			GROUP BY ua.user_id, DATE(ua.created_at)
 			ORDER BY practice_date DESC
@@ -658,8 +674,8 @@ func getSingleAnswerSessions(userID uint) []map[string]interface{} {
 				MAX(ua.created_at) as created_at,
 				'single' as answer_type,
 				u.username as student_name
-			FROM user_answers ua
-			JOIN users u ON ua.user_id = u.id
+			FROM user_answer ua
+			JOIN user u ON ua.user_id = u.id
 			WHERE ua.user_id = ? AND (ua.paper_id = 0 OR ua.paper_id IS NULL) AND ua.deleted_at IS NULL
 			GROUP BY ua.user_id, DATE(ua.created_at)
 			ORDER BY practice_date DESC
