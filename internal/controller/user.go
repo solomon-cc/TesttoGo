@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // @Summary 获取用户列表
@@ -459,7 +460,15 @@ func GetUserAnswerHistory(c *gin.Context) {
 	// Build query
 	query := database.DB.Model(&entity.UserAnswer{}).
 		Where("user_id = ?", userID).
-		Preload("Question")
+		Preload("Question", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, title, type, difficulty, grade, subject, topic, options, answer, explanation, creator_id, media_urls, layout_type, element_data, tags, created_at, updated_at")
+		}).
+		Preload("Question.Creator", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, username, role, created_at, updated_at").Where("id > 0")
+		}).
+		Preload("User", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, username, role, created_at, updated_at")
+		})
 
 	if answerType != "" {
 		query = query.Where("answer_type = ?", answerType)
@@ -484,16 +493,57 @@ func GetUserAnswerHistory(c *gin.Context) {
 	// Convert to response format
 	items := make([]map[string]interface{}, len(answers))
 	for i, answer := range answers {
+		// Get student name from User relationship
+		studentName := ""
+		if answer.User.ID > 0 {
+			studentName = answer.User.Username
+		}
+
+		// Get creator information from Question.Creator relationship
+		var creator map[string]interface{}
+		if answer.Question.Creator.ID > 0 {
+			creator = map[string]interface{}{
+				"id":         answer.Question.Creator.ID,
+				"username":   answer.Question.Creator.Username,
+				"role":       answer.Question.Creator.Role,
+				"created_at": answer.Question.Creator.CreatedAt,
+				"updated_at": answer.Question.Creator.UpdatedAt,
+			}
+		}
+
+		// Include creator in question data
+		questionData := answer.Question
+		questionMap := map[string]interface{}{
+			"id":             questionData.ID,
+			"title":          questionData.Title,
+			"type":           questionData.Type,
+			"difficulty":     questionData.Difficulty,
+			"grade":          questionData.Grade,
+			"subject":        questionData.Subject,
+			"topic":          questionData.Topic,
+			"options":        questionData.Options,
+			"answer":         questionData.Answer,
+			"explanation":    questionData.Explanation,
+			"creator_id":     questionData.CreatorID,
+			"creator":        creator,
+			"media_urls":     questionData.MediaURLs,
+			"layout_type":    questionData.LayoutType,
+			"element_data":   questionData.ElementData,
+			"tags":           questionData.Tags,
+			"created_at":     questionData.CreatedAt,
+			"updated_at":     questionData.UpdatedAt,
+		}
+
 		items[i] = map[string]interface{}{
-			"id":          answer.ID,
-			"question_id": answer.QuestionID,
-			"question":    answer.Question,
-			"paper_id":    answer.PaperID,
-			"answer":      answer.Answer,
-			"score":       answer.Score,
-			"is_correct":  answer.IsCorrect,
-			"answer_type": answer.AnswerType,
-			"created_at":  answer.CreatedAt,
+			"id":           answer.ID,
+			"question_id":  answer.QuestionID,
+			"question":     questionMap,
+			"paper_id":     answer.PaperID,
+			"answer":       answer.Answer,
+			"is_correct":   answer.IsCorrect,
+			"answer_type":  answer.AnswerType,
+			"student_name": studentName,
+			"created_at":   answer.CreatedAt,
 		}
 	}
 

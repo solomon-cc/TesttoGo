@@ -55,7 +55,6 @@ type UserAnswer struct {
 	PaperID    uint           `json:"paper_id"` // 可选，单题答题时为0
 	QuestionID uint           `json:"question_id"`
 	Answer     string         `gorm:"type:text" json:"answer"`
-	Score      int            `json:"score"`
 	IsCorrect  bool           `json:"is_correct"`
 	AnswerType string         `gorm:"type:varchar(20);default:'single'" json:"answer_type"` // single|paper
 	CreatedAt  time.Time      `json:"created_at"`

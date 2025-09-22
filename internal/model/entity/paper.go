@@ -18,7 +18,6 @@ type Paper struct {
 	Status       string         `json:"status"`       // draft, published, closed
 	Questions    string         `json:"questions"`    // 题目ID的JSON字符串
 	Duration     int            `json:"duration"`     // 单位：分钟
-	TotalScore   int            `json:"total_score"`  // 总分
 	StartTime    *time.Time     `json:"start_time"`   // 开始时间
 	EndTime      *time.Time     `json:"end_time"`     // 结束时间
 	CreatedAt    time.Time      `json:"created_at"`

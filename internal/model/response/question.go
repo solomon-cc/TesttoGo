@@ -22,7 +22,6 @@ type QuestionAnswerResponse struct {
 	QuestionID  uint      `json:"question_id"`
 	UserAnswer  string    `json:"user_answer"`
 	IsCorrect   bool      `json:"is_correct"`
-	Score       int       `json:"score"`
 	Explanation string    `json:"explanation,omitempty"` // 答案解释
 	AnsweredAt  time.Time `json:"answered_at"`
 }
@@ -36,7 +35,6 @@ type UserAnswerHistoryResponse struct {
 	Type        string    `json:"question_type"`
 	UserAnswer  string    `json:"user_answer"`
 	IsCorrect   bool      `json:"is_correct"`
-	Score       int       `json:"score"`
 	AnsweredAt  time.Time `json:"answered_at"`
 }
 

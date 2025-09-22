@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"testogo/internal/model/entity"
@@ -26,6 +27,7 @@ func subjectNameToCode(name string) string {
 	}
 	return name // 如果映射不存在，返回原值
 }
+
 
 // @Summary 创建试卷
 // @Description 创建新的试卷
@@ -70,7 +72,6 @@ func CreatePaper(c *gin.Context) {
 		Difficulty:  req.Difficulty,
 		Status:      req.Status,
 		Questions:   string(questionIDs),
-		TotalScore:  req.TotalScore,
 		StartTime:   req.StartTime,
 		EndTime:     req.EndTime,
 	}
@@ -114,7 +115,7 @@ func GetPaper(c *gin.Context) {
 		"type":        paper.Type,
 		"difficulty":  paper.Difficulty,
 		"status":      paper.Status,
-		"total_score": paper.TotalScore,
+		"total_questions": len(questions),
 		"start_time":  paper.StartTime,
 		"end_time":    paper.EndTime,
 		"questions":   questions,
@@ -176,7 +177,7 @@ func UpdatePaper(c *gin.Context) {
 	paper.Type = req.Type
 	paper.Difficulty = req.Difficulty
 	paper.Status = req.Status
-	paper.TotalScore = req.TotalScore
+	// TotalScore is calculated based on correct answers, not stored
 	paper.StartTime = req.StartTime
 	paper.EndTime = req.EndTime
 
@@ -203,7 +204,6 @@ func SubmitPaper(c *gin.Context) {
 	}
 
 	userID := c.GetUint("userID")
-	var totalScore int
 
 	// 开启事务
 	tx := database.DB.Begin()
@@ -222,12 +222,8 @@ func SubmitPaper(c *gin.Context) {
 			return
 		}
 
-		// 计算得分
-		score := 0
-		if question.Answer == answer.Answer {
-			score = 10 // 每题10分
-		}
-		totalScore += score
+		// 判断答案是否正确
+		isCorrect := checkAnswer(question.Type, question.Options, question.Answer, answer.Answer)
 
 		// 保存答题记录
 		userAnswer := entity.UserAnswer{
@@ -235,7 +231,8 @@ func SubmitPaper(c *gin.Context) {
 			PaperID:    uint(paperID),
 			QuestionID: answer.QuestionID,
 			Answer:     answer.Answer,
-			Score:      score,
+			IsCorrect:  isCorrect,
+			AnswerType: "paper",
 		}
 
 		if err := tx.Create(&userAnswer).Error; err != nil {
@@ -252,7 +249,6 @@ func SubmitPaper(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "提交成功",
-		"score":   totalScore,
 	})
 }
 
@@ -266,14 +262,17 @@ func GetPaperResult(c *gin.Context) {
 		return
 	}
 
-	totalScore := 0
+	correctCount := 0
 	for _, answer := range answers {
-		totalScore += answer.Score
+		if answer.IsCorrect {
+			correctCount++
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"answers":    answers,
-		"totalScore": totalScore,
+		"answers":       answers,
+		"correct_count": correctCount,
+		"total_count":   len(answers),
 	})
 }
 
@@ -291,7 +290,7 @@ func ListPapers(c *gin.Context) {
 		Status       string      `json:"status"`
 		Questions    string      `json:"questions"`
 		Duration     int         `json:"duration"`
-		TotalScore   int         `json:"total_score"`
+		TotalQuestions int       `json:"total_questions"`
 		StartTime    *time.Time  `json:"start_time"`
 		EndTime      *time.Time  `json:"end_time"`
 		CreatedAt    time.Time   `json:"created_at"`
@@ -379,28 +378,32 @@ func ListPapers(c *gin.Context) {
 			Distinct("user_id").
 			Count(&attemptCount)
 
-		// 计算平均分：获取该试卷所有用户的总分，然后计算平均值
+		// 计算平均正确率：获取该试卷所有用户的正确答题数，然后计算平均值
 		var averageScore float64
 		if attemptCount > 0 {
-			// 获取每个用户的总分
+			// 获取每个用户的正确答题数
 			var userScores []struct {
-				UserID     uint
-				TotalScore int
+				UserID       uint
+				CorrectCount int
 			}
 
 			database.DB.Model(&entity.UserAnswer{}).
-				Select("user_id, SUM(score) as total_score").
+				Select("user_id, SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct_count").
 				Where("paper_id = ?", paper.ID).
 				Group("user_id").
 				Scan(&userScores)
 
-			// 计算平均分
+			// 计算平均正确率（百分比）
 			if len(userScores) > 0 {
-				var totalSum int
+				var totalCorrect int
 				for _, score := range userScores {
-					totalSum += score.TotalScore
+					totalCorrect += score.CorrectCount
 				}
-				averageScore = float64(totalSum) / float64(len(userScores))
+				// 获取试卷总题数以计算百分比
+				questionCount := len(strings.Split(paper.Questions, ","))
+				if questionCount > 0 {
+					averageScore = float64(totalCorrect) / float64(len(userScores)*questionCount) * 100
+				}
 			}
 		}
 
@@ -417,7 +420,7 @@ func ListPapers(c *gin.Context) {
 			Status:       paper.Status,
 			Questions:    paper.Questions,
 			Duration:     paper.Duration,
-			TotalScore:   paper.TotalScore,
+			TotalQuestions: len(strings.Split(paper.Questions, ",")),
 			StartTime:    paper.StartTime,
 			EndTime:      paper.EndTime,
 			CreatedAt:    paper.CreatedAt,

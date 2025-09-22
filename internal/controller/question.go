@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -402,18 +403,13 @@ func AnswerQuestion(c *gin.Context) {
 	}
 
 	// 判断答案是否正确
-	isCorrect := checkAnswer(question.Answer, req.Answer)
-	score := 0
-	if isCorrect {
-		score = 10 // 单题答对得10分
-	}
+	isCorrect := checkAnswer(question.Type, question.Options, question.Answer, req.Answer)
 
 	// 保存答题记录
 	userAnswer := entity.UserAnswer{
 		UserID:     userID,
 		QuestionID: uint(mustParseInt(questionID)),
 		Answer:     req.Answer,
-		Score:      score,
 		IsCorrect:  isCorrect,
 		AnswerType: "single",
 		PaperID:    0, // 单题答题不关联试卷
@@ -429,7 +425,6 @@ func AnswerQuestion(c *gin.Context) {
 		QuestionID:  userAnswer.QuestionID,
 		UserAnswer:  userAnswer.Answer,
 		IsCorrect:   userAnswer.IsCorrect,
-		Score:       userAnswer.Score,
 		Explanation: question.Explanation,
 		AnsweredAt:  userAnswer.CreatedAt,
 	}
@@ -437,13 +432,6 @@ func AnswerQuestion(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// 辅助函数：检查答案是否正确
-func checkAnswer(correctAnswer, userAnswer string) bool {
-	// 去除前后空格并转为小写进行比较
-	correct := strings.TrimSpace(strings.ToLower(correctAnswer))
-	user := strings.TrimSpace(strings.ToLower(userAnswer))
-	return correct == user
-}
 
 // @Summary 获取题目答题统计
 // @Description 获取指定题目的答题统计信息
@@ -486,6 +474,115 @@ func GetQuestionStatistics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+// 辅助函数：检查答案是否正确
+func checkAnswer(questionType entity.QuestionType, options, correctAnswer, userAnswer string) bool {
+	// 去除前后空格
+	correct := strings.TrimSpace(correctAnswer)
+	user := strings.TrimSpace(userAnswer)
+
+	// 最简单的情况：直接比较（忽略大小写）
+	if strings.EqualFold(correct, user) {
+		return true
+	}
+
+	// 特殊处理判断题
+	if questionType == entity.TypeJudge {
+		correctNorm := normalizeJudgeAnswer(correct)
+		userNorm := normalizeJudgeAnswer(user)
+		if correctNorm == userNorm {
+			return true
+		}
+	}
+
+	// 对于选择题，处理字母和选项内容的映射
+	if questionType == entity.TypeChoice || questionType == entity.TypeMultiChoice {
+		if options != "" {
+			var optionsList []string
+			if err := json.Unmarshal([]byte(options), &optionsList); err == nil && len(optionsList) > 0 {
+
+				// 检查是否都是单个字符的字母答案
+				correctIsLetter := len(correct) == 1 && ((correct >= "A" && correct <= "Z") || (correct >= "a" && correct <= "z"))
+				userIsLetter := len(user) == 1 && ((user >= "A" && user <= "Z") || (user >= "a" && user <= "z"))
+
+				if correctIsLetter && userIsLetter {
+					// 两者都是字母，转换为索引比较
+					correctIndex := -1
+					userIndex := -1
+
+					if correct >= "A" && correct <= "Z" {
+						correctIndex = int(correct[0] - 'A')
+					} else if correct >= "a" && correct <= "z" {
+						correctIndex = int(correct[0] - 'a')
+					}
+
+					if user >= "A" && user <= "Z" {
+						userIndex = int(user[0] - 'A')
+					} else if user >= "a" && user <= "z" {
+						userIndex = int(user[0] - 'a')
+					}
+
+					if correctIndex == userIndex && correctIndex >= 0 && correctIndex < len(optionsList) {
+						return true
+					}
+				} else if correctIsLetter && !userIsLetter {
+					// 正确答案是字母，用户答案是选项内容
+					var correctIndex int
+					if correct >= "A" && correct <= "Z" {
+						correctIndex = int(correct[0] - 'A')
+					} else {
+						correctIndex = int(correct[0] - 'a')
+					}
+
+					if correctIndex >= 0 && correctIndex < len(optionsList) {
+						correctOption := strings.TrimSpace(optionsList[correctIndex])
+						if strings.EqualFold(user, correctOption) {
+							return true
+						}
+					}
+				} else if !correctIsLetter && userIsLetter {
+					// 正确答案是选项内容，用户答案是字母
+					var userIndex int
+					if user >= "A" && user <= "Z" {
+						userIndex = int(user[0] - 'A')
+					} else {
+						userIndex = int(user[0] - 'a')
+					}
+
+					if userIndex >= 0 && userIndex < len(optionsList) {
+						userOption := strings.TrimSpace(optionsList[userIndex])
+						if strings.EqualFold(correct, userOption) {
+							return true
+						}
+					}
+				} else {
+					// 两者都是选项内容，直接比较
+					for _, option := range optionsList {
+						option = strings.TrimSpace(option)
+						if strings.EqualFold(correct, option) && strings.EqualFold(user, option) {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// 标准化判断题答案
+func normalizeJudgeAnswer(answer string) string {
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	switch answer {
+	case "true", "正确", "对", "是", "√", "1", "t":
+		return "true"
+	case "false", "错误", "错", "否", "×", "0", "f":
+		return "false"
+	default:
+		return answer
+	}
 }
 
 // 辅助函数：字符串转整数

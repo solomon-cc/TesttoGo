@@ -46,7 +46,6 @@ type CreatePaperRequest struct {
 	Difficulty  string     `json:"difficulty" binding:"required,oneof=easy medium hard"`
 	Status      string     `json:"status" binding:"required,oneof=draft published"`
 	QuestionIDs []uint     `json:"question_ids"`
-	TotalScore  int        `json:"total_score" binding:"required,min=1"`
 	StartTime   *time.Time `json:"start_time"`
 	EndTime     *time.Time `json:"end_time"`
 }
