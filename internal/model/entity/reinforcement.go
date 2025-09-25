@@ -45,6 +45,10 @@ type ReinforcementSetting struct {
 	ScheduleType      ReinforcementScheduleType `gorm:"type:enum('VR','FR','VI','FI')" json:"schedule_type"`
 	RatioValue        int                       `gorm:"comment:'For VR/FR: number of correct answers needed'" json:"ratio_value"`
 	IntervalValue     int                       `gorm:"comment:'For VI/FI: time interval in minutes'" json:"interval_value"`
+	// 目标配置字段
+	TargetType        string                    `gorm:"type:enum('global','student','homework');default:'global'" json:"target_type"`
+	StudentIds        string                    `gorm:"type:text" json:"student_ids"`   // JSON数组存储
+	HomeworkIds       string                    `gorm:"type:text" json:"homework_ids"`  // JSON数组存储
 	IsActive          bool                      `gorm:"default:true" json:"is_active"`
 	CreatedAt         time.Time                 `json:"created_at"`
 	UpdatedAt         time.Time                 `json:"updated_at"`

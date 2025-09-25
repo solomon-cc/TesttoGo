@@ -15,6 +15,11 @@ type ReinforcementSettingResponse struct {
 	IntervalValue int                        `json:"interval_value"`
 	IsActive      bool                       `json:"is_active"`
 	Items         []ReinforcementItemResponse `json:"items"`
+	// 前端需要的额外字段
+	ItemIds       []uint                     `json:"item_ids"`
+	TargetType    string                     `json:"target_type"`
+	StudentIds    []uint                     `json:"student_ids"`
+	HomeworkIds   []uint                     `json:"homework_ids"`
 	CreatedAt     time.Time                  `json:"created_at"`
 	UpdatedAt     time.Time                  `json:"updated_at"`
 }

@@ -35,6 +35,25 @@ func CreateReinforcementSetting(c *gin.Context) {
 		}
 	}()
 
+	// Serialize target configuration arrays to JSON
+	var studentIdsJSON, homeworkIdsJSON string
+	if len(req.StudentIds) > 0 {
+		if studentIdsBytes, err := json.Marshal(req.StudentIds); err == nil {
+			studentIdsJSON = string(studentIdsBytes)
+		}
+	}
+	if len(req.HomeworkIds) > 0 {
+		if homeworkIdsBytes, err := json.Marshal(req.HomeworkIds); err == nil {
+			homeworkIdsJSON = string(homeworkIdsBytes)
+		}
+	}
+
+	// Set default target type if not provided
+	targetType := req.TargetType
+	if targetType == "" {
+		targetType = "global"
+	}
+
 	// Create reinforcement setting
 	setting := entity.ReinforcementSetting{
 		Name:          req.Name,
@@ -44,6 +63,9 @@ func CreateReinforcementSetting(c *gin.Context) {
 		ScheduleType:  entity.ReinforcementScheduleType(req.ScheduleType),
 		RatioValue:    req.RatioValue,
 		IntervalValue: req.IntervalValue,
+		TargetType:    targetType,
+		StudentIds:    studentIdsJSON,
+		HomeworkIds:   homeworkIdsJSON,
 		IsActive:      true,
 	}
 
@@ -287,6 +309,21 @@ func UpdateReinforcementSetting(c *gin.Context) {
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
 	}
+	if req.TargetType != nil {
+		updates["target_type"] = *req.TargetType
+	}
+
+	// Handle target arrays
+	if len(req.StudentIds) > 0 {
+		if studentIdsBytes, err := json.Marshal(req.StudentIds); err == nil {
+			updates["student_ids"] = string(studentIdsBytes)
+		}
+	}
+	if len(req.HomeworkIds) > 0 {
+		if homeworkIdsBytes, err := json.Marshal(req.HomeworkIds); err == nil {
+			updates["homework_ids"] = string(homeworkIdsBytes)
+		}
+	}
 
 	if err := tx.Model(&setting).Updates(updates).Error; err != nil {
 		tx.Rollback()
@@ -438,6 +475,9 @@ func CopyReinforcementSetting(c *gin.Context) {
 		ScheduleType:  sourceSetting.ScheduleType,
 		RatioValue:    sourceSetting.RatioValue,
 		IntervalValue: sourceSetting.IntervalValue,
+		TargetType:    sourceSetting.TargetType,
+		StudentIds:    sourceSetting.StudentIds,
+		HomeworkIds:   sourceSetting.HomeworkIds,
 		IsActive:      true,
 	}
 
@@ -856,6 +896,7 @@ func convertToReinforcementSettingResponse(setting *entity.ReinforcementSetting)
 		RatioValue:    setting.RatioValue,
 		IntervalValue: setting.IntervalValue,
 		IsActive:      setting.IsActive,
+		TargetType:    setting.TargetType,
 		CreatedAt:     setting.CreatedAt,
 		UpdatedAt:     setting.UpdatedAt,
 	}
@@ -864,11 +905,29 @@ func convertToReinforcementSettingResponse(setting *entity.ReinforcementSetting)
 		resp.CreatorName = setting.Creator.Username
 	}
 
-	// Convert items
+	// Convert items and extract item IDs
 	if len(setting.ReinforcementItems) > 0 {
 		resp.Items = make([]response.ReinforcementItemResponse, len(setting.ReinforcementItems))
+		resp.ItemIds = make([]uint, len(setting.ReinforcementItems))
 		for i, item := range setting.ReinforcementItems {
 			resp.Items[i] = convertToReinforcementItemResponse(&item)
+			resp.ItemIds[i] = item.ID
+		}
+	}
+
+	// Parse student IDs from JSON string
+	if setting.StudentIds != "" {
+		var studentIds []uint
+		if err := json.Unmarshal([]byte(setting.StudentIds), &studentIds); err == nil {
+			resp.StudentIds = studentIds
+		}
+	}
+
+	// Parse homework IDs from JSON string
+	if setting.HomeworkIds != "" {
+		var homeworkIds []uint
+		if err := json.Unmarshal([]byte(setting.HomeworkIds), &homeworkIds); err == nil {
+			resp.HomeworkIds = homeworkIds
 		}
 	}
 

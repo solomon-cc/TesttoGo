@@ -9,6 +9,9 @@ type CreateReinforcementSettingRequest struct {
 	RatioValue    int    `json:"ratio_value" binding:"min=1,max=100"`
 	IntervalValue int    `json:"interval_value" binding:"min=1,max=1440"` // max 24 hours
 	ItemIDs       []uint `json:"item_ids" binding:"required,min=1"`
+	TargetType    string `json:"target_type" binding:"oneof=global student homework"`
+	StudentIds    []uint `json:"student_ids"`
+	HomeworkIds   []uint `json:"homework_ids"`
 }
 
 // UpdateReinforcementSettingRequest represents the request to update a reinforcement setting
@@ -21,6 +24,9 @@ type UpdateReinforcementSettingRequest struct {
 	IntervalValue *int    `json:"interval_value,omitempty"`
 	ItemIDs       []uint  `json:"item_ids,omitempty"`
 	IsActive      *bool   `json:"is_active,omitempty"`
+	TargetType    *string `json:"target_type,omitempty"`
+	StudentIds    []uint  `json:"student_ids,omitempty"`
+	HomeworkIds   []uint  `json:"homework_ids,omitempty"`
 }
 
 // CreateReinforcementItemRequest represents the request to create a reinforcement item
