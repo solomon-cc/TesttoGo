@@ -93,3 +93,17 @@ type ConfirmImportRequest struct {
 	FileID    string               `json:"file_id" binding:"required"`
 	Questions []ImportQuestionData `json:"questions" binding:"required"`
 }
+
+// BatchUpdateQuestionsRequest 批量编辑题目请求
+type BatchUpdateQuestionsRequest struct {
+	IDs     []uint                     `json:"ids" binding:"required,min=1"`
+	Updates BatchUpdateQuestionFields  `json:"updates" binding:"required"`
+}
+
+// BatchUpdateQuestionFields 批量编辑的字段
+type BatchUpdateQuestionFields struct {
+	Grade      string `json:"grade"`
+	Subject    string `json:"subject"`
+	Topic      string `json:"topic"`
+	Difficulty string `json:"difficulty"`
+}

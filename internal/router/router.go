@@ -33,6 +33,12 @@ func InitRouter(r *gin.Engine) {
 			questions.POST("/:id/answer", controller.AnswerQuestion)
 			questions.PUT("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.UpdateQuestion)
 			questions.DELETE("/:id", middleware.RoleMiddleware("teacher", "admin"), controller.DeleteQuestion)
+
+			// 批量操作
+			questions.PUT("/batch", middleware.RoleMiddleware("teacher", "admin"), controller.BatchUpdateQuestions)
+
+			// 导入导出
+			questions.POST("/import", middleware.RoleMiddleware("teacher", "admin"), controller.ImportQuestionsJSON)
 		}
 
 		// 试卷相关路由

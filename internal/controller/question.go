@@ -590,3 +590,211 @@ func mustParseInt(s string) int {
 	i, _ := strconv.Atoi(s)
 	return i
 }
+
+// @Summary 批量编辑题目
+// @Description 批量修改多个题目的属性
+// @Tags 题目
+// @Accept json
+// @Produce json
+// @Security BasicAuth
+// @Param request body request.BatchUpdateQuestionsRequest true "批量编辑请求参数"
+// @Success 200 {object} map[string]interface{} "返回修改成功的题目数量"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions/batch [put]
+func BatchUpdateQuestions(c *gin.Context) {
+	var req request.BatchUpdateQuestionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Reason: Validate that at least one question ID is provided
+	if len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请至少选择一道题目",
+		})
+		return
+	}
+
+	// Reason: Validate that at least one update field is provided
+	if req.Updates.Grade == "" && req.Updates.Subject == "" && req.Updates.Difficulty == "" && req.Updates.Topic == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请至少选择一项要修改的内容",
+		})
+		return
+	}
+
+	// Reason: Build update map with only non-empty fields
+	updates := make(map[string]interface{})
+	if req.Updates.Grade != "" {
+		updates["grade"] = req.Updates.Grade
+	}
+	if req.Updates.Subject != "" {
+		updates["subject"] = req.Updates.Subject
+	}
+	if req.Updates.Topic != "" {
+		updates["topic"] = req.Updates.Topic
+	}
+	if req.Updates.Difficulty != "" {
+		updates["difficulty"] = req.Updates.Difficulty
+	}
+	updates["updated_at"] = time.Now()
+
+	// Reason: Batch update questions in database
+	result := database.DB.Model(&entity.Question{}).
+		Where("id IN ?", req.IDs).
+		Updates(updates)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "批量修改失败",
+			"error":   result.Error.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "批量修改成功",
+		"data": gin.H{
+			"updated_count": result.RowsAffected,
+		},
+	})
+}
+
+// @Summary 导入题目（JSON格式）
+// @Description 从JSON文件导入题目，直接创建
+// @Tags 题目
+// @Accept multipart/form-data
+// @Produce json
+// @Security BasicAuth
+// @Param file formData file true "题目文件（JSON格式）"
+// @Success 200 {object} map[string]interface{} "返回导入成功的题目数量"
+// @Failure 400 {object} map[string]interface{} "请求参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Router /api/v1/questions/import [post]
+func ImportQuestionsJSON(c *gin.Context) {
+	userID := c.GetUint("userID")
+
+	// Reason: Get uploaded file from form data
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请上传文件",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Reason: Validate file extension
+	filename := file.Filename
+	if !strings.HasSuffix(filename, ".json") {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "目前仅支持JSON格式文件",
+		})
+		return
+	}
+
+	// Reason: Open and read file content
+	fileContent, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "文件读取失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer fileContent.Close()
+
+	// Reason: Parse JSON data into question array
+	var importQuestions []request.CreateQuestionRequest
+	decoder := json.NewDecoder(fileContent)
+	if err := decoder.Decode(&importQuestions); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "JSON格式错误，请检查文件内容",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if len(importQuestions) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "文件中没有题目数据",
+		})
+		return
+	}
+
+	// Reason: Import questions one by one with validation
+	successCount := 0
+	failedCount := 0
+	var errors []string
+
+	for i, req := range importQuestions {
+		// 基本验证
+		if req.Title == "" {
+			errors = append(errors, "第"+strconv.Itoa(i+1)+"题：题目内容不能为空")
+			failedCount++
+			continue
+		}
+
+		// 创建题目实体
+		question := entity.Question{
+			Title:      req.Title,
+			Type:       entity.QuestionType(req.Type),
+			Grade:      req.Grade,
+			Subject:    req.Subject,
+			Topic:      req.Topic,
+			Difficulty: req.Difficulty,
+			Answer:     req.Answer,
+			CreatorID:  userID,
+		}
+
+		// 处理选项（req.Options是string类型）
+		if req.Options != "" {
+			question.Options = req.Options
+		}
+
+		// 处理解析
+		if req.Explanation != "" {
+			question.Explanation = req.Explanation
+		}
+
+		// 保存到数据库
+		if err := database.DB.Create(&question).Error; err != nil {
+			errors = append(errors, "第"+strconv.Itoa(i+1)+"题："+err.Error())
+			failedCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	responseData := gin.H{
+		"total":          len(importQuestions),
+		"success_count":  successCount,
+		"failed_count":   failedCount,
+	}
+
+	if len(errors) > 0 {
+		responseData["errors"] = errors
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "导入完成",
+		"data":    responseData,
+	})
+}
